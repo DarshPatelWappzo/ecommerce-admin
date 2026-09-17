@@ -2,43 +2,42 @@
     $oldValues = $auditLog->old_values ?? [];
     $newValues = $auditLog->new_values ?? [];
     $recordValues = array_merge($oldValues, $newValues);
-    $recordEmail = $auditLog->auditable?->email
-        ?? $auditLog->auditable?->user?->email
-        ?? $recordValues['email']
-        ?? null;
-    $packageName = $auditLog->auditable?->name ?? $recordValues['name'] ?? null;
-    $booleanFields = [
-        'backup_included',
-        'cdn_included',
-        'load_balancer_included',
-        'is_recommended',
-    ];
-    $fields = $auditLog->action === 'updated'
-        ? array_unique(array_merge(array_keys($oldValues), array_keys($newValues)))
-        : array_keys($auditLog->action === 'created' ? $newValues : $oldValues);
+    $recordEmail =
+        $auditLog->auditable?->email ?? ($auditLog->auditable?->user?->email ?? ($recordValues['email'] ?? null));
+    $packageName = $auditLog->auditable?->name ?? ($recordValues['name'] ?? null);
+    $booleanFields = ['backup_included', 'cdn_included', 'load_balancer_included', 'is_recommended'];
+    $fields =
+        $auditLog->action === 'updated'
+            ? array_unique(array_merge(array_keys($oldValues), array_keys($newValues)))
+            : array_keys($auditLog->action === 'created' ? $newValues : $oldValues);
     $formatValue = static function (mixed $value, ?string $field = null) use ($booleanFields): string {
         if ($value === null || $value === '') {
             return '—';
         }
 
-        if (is_bool($value) || ($field !== null && in_array($field, $booleanFields, true) && in_array((string) $value, ['0', '1'], true))) {
+        if (
+            is_bool($value) ||
+            ($field !== null && in_array($field, $booleanFields, true) && in_array((string) $value, ['0', '1'], true))
+        ) {
             return $value ? 'Yes' : 'No';
         }
 
         if (is_array($value)) {
-            return collect($value)->map(fn (mixed $item, string|int $key): string => $key . ': ' . $item)->implode(', ');
+            return collect($value)->map(fn(mixed $item, string|int $key): string => $key . ': ' . $item)->implode(', ');
         }
 
         return (string) $value;
     };
 @endphp
 
-<div class="modal fade" id="audit-log-{{ $auditLog->id }}" tabindex="-1" aria-labelledby="audit-log-label-{{ $auditLog->id }}" aria-hidden="true">
+<div class="modal fade" id="audit-log-{{ $auditLog->id }}" tabindex="-1"
+    aria-labelledby="audit-log-label-{{ $auditLog->id }}" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <div>
-                    <h5 class="modal-title" id="audit-log-label-{{ $auditLog->id }}">{{ Illuminate\Support\Str::headline($auditLog->module) }} {{ ucfirst($auditLog->action) }}</h5>
+                    <h5 class="modal-title" id="audit-log-label-{{ $auditLog->id }}">
+                        {{ Illuminate\Support\Str::headline($auditLog->module) }} {{ ucfirst($auditLog->action) }}</h5>
                     @if ($auditLog->module === 'users' && $recordEmail)
                         <div class="text-primary"><strong>Email:</strong> {{ $recordEmail }}</div>
                     @elseif ($auditLog->module === 'packages' && $packageName)
@@ -67,7 +66,9 @@
                                 <td>{{ $formatValue($newValues[$field] ?? null, $field) }}</td>
                             </tr>
                         @empty
-                            <tr><td class="text-secondary" colspan="4">No field changes recorded.</td></tr>
+                            <tr>
+                                <td class="text-secondary" colspan="4">No field changes recorded.</td>
+                            </tr>
                         @endforelse
                     </tbody>
                 </table>

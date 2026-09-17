@@ -101,6 +101,21 @@ php artisan view:clear
 
 Super-admin web routes and the user-creation API use the `auth` and `EnsureSuperAdmin` middleware.
 
+## Tenant provisioning
+
+Each registered central domain receives its own MySQL database named `tenant_{centralUserId}_{domainId}`. Tenant databases contain independent users, roles, permissions, and role pivots. Package, subscription, domain, and audit data remain in the central database.
+
+Tenant provisioning commands:
+
+```bash
+php artisan tenant:migrate {user_id}
+php artisan tenant:seed {user_id}
+php artisan tenant:retry-provision {user_id}
+php artisan tenant:list
+```
+
+Tenant administrators receive a temporary password by email and must change it on first login before accessing tenant application routes. Configure SMTP values in `.env`; the default `log` mailer is suitable only for local inspection.
+
 ## Create user API
 
 The endpoint accepts JSON with the same fields as the super-admin user form:
