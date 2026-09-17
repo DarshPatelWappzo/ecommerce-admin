@@ -20,12 +20,17 @@
             <div class="alert alert-success" role="alert">{{ session('success') }}</div>
         @endif
 
+        @if (session('error'))
+            <div class="alert alert-danger" role="alert">{{ session('error') }}</div>
+        @endif
+
         <div class="dashboard-card p-0 overflow-hidden" data-ajax-pagination-container>
             <div class="p-3 border-bottom">
                 <label class="visually-hidden" for="user-search">Search users</label>
                 <div class="input-group">
                     {{-- <span class="input-group-text"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span> --}}
-                    <input class="form-control" id="user-search" type="search" value="{{ request('search') }}" placeholder="Search users..." data-ajax-search>
+                    <input class="form-control" id="user-search" type="search" value="{{ request('search') }}"
+                        placeholder="Search users..." data-ajax-search>
                 </div>
             </div>
             <div class="table-responsive">
@@ -38,6 +43,7 @@
                             <th scope="col">Mobile number</th>
                             <th scope="col">package</th>
                             <th scope="col">Status</th>
+                            <th scope="col">Tenant status</th>
                             <th scope="col">Joined</th>
                             <th scope="col">Action</th>
                         </tr>
@@ -45,7 +51,8 @@
                     <tbody>
                         @forelse ($users as $user)
                             @php
-                                $fullName = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: $user->name;
+                                $fullName =
+                                    trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: $user->name;
                             @endphp
                             <tr>
                                 <td>{{ $users->firstItem() + $loop->index }}</td>
@@ -64,20 +71,49 @@
                                 <td>{{ $user->mobile_number ?: 'NA' }}</td>
                                 <td>Premium</td>
                                 <td>
-                                    <span class="badge rounded-pill text-bg-{{ $user->status === 'active' ? 'success' : 'secondary' }}">
+                                    <span
+                                        class="badge rounded-pill text-bg-{{ $user->status === 'active' ? 'success' : 'secondary' }}">
                                         {{ ucfirst($user->status) }}
                                     </span>
                                 </td>
+                                <td>
+                                    @if ($user->tenantDatabases->isEmpty())
+                                        <span class="badge rounded-pill text-bg-secondary">Not provisioned</span>
+                                    @else
+                                        @foreach ($user->tenantDatabases as $tenantDatabase)
+                                            <div class="d-flex align-items-center gap-2 mb-1">
+                                                <div>
+                                                    <div class="small text-secondary">{{ $tenantDatabase->database_name }}
+                                                    </div>
+                                                    <span
+                                                        class="badge rounded-pill text-bg-{{ $tenantDatabase->status === 'active' ? 'success' : ($tenantDatabase->status === 'failed' ? 'danger' : 'warning') }}">{{ ucfirst($tenantDatabase->status) }}</span>
+                                                </div>
+                                                @if ($tenantDatabase->status === 'failed')
+                                                    <form method="POST"
+                                                        action="{{ route('super-admin.admin.tenant-databases.retry', [$user, $tenantDatabase]) }}">
+                                                        @csrf
+                                                        <button class="btn btn-sm btn-outline-danger" type="submit"
+                                                            title="Retry {{ $tenantDatabase->database_name }}">
+                                                            <i class="fa-solid fa-rotate-right me-1"
+                                                                aria-hidden="true"></i>Retry
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                    @endif
+                                </td>
                                 <td>{{ $user->created_at?->format('d M Y') }}</td>
                                 <td>
-                                    <a class="btn btn-sm btn-outline-primary" href="{{ route('super-admin.admin.edit', $user) }}">
-                                        <i class="fa-solid fa-pen-to-square me-1" aria-hidden="true"></i>Edit
+                                    <a class="btn btn-sm btn-outline-primary"
+                                        href="{{ route('super-admin.admin.edit', $user) }}">
+                                        <i class="fa-solid fa-pen-to-square me-1" aria-hidden="true"></i>
                                     </a>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td class="py-2 text-center text-secondary" colspan="8">No users found.</td>
+                                <td class="py-2 text-center text-secondary" colspan="9">No users found.</td>
                             </tr>
                         @endforelse
                     </tbody>

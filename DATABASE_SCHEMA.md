@@ -136,6 +136,12 @@ Indexes:
 
 Audit logs do not have a foreign key to the audited record, so deleting or soft-deleting a package does not remove its history. The actor relationship uses `withTrashed()` so a soft-deleted user can still be displayed.
 
+## Tenant database mapping
+
+The central `tenant_databases` table maps each central domain to one physical tenant database. `domain_id` is unique, and `database_name` is internally generated from numeric IDs, for example `tenant_15_42`.
+
+Tenant databases independently contain `users`, `roles`, `permissions`, `role_user`, and `role_permissions`. The first tenant user receives the Admin role and uses `is_first_login` to enforce the temporary-password change.
+
 ## Laravel support tables
 
 The migrations also create framework tables:

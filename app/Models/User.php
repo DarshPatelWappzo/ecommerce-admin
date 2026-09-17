@@ -30,6 +30,11 @@ class User extends Authenticatable
         return $this->hasMany(UserDomain::class);
     }
 
+    public function tenantDatabases(): HasMany
+    {
+        return $this->hasMany(TenantDatabase::class);
+    }
+
     /**
      * Get the attributes that should be cast.
      *

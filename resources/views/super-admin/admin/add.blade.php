@@ -23,9 +23,7 @@
                         <input class="form-control" id="first_name" name="first_name" type="text"
                             value="{{ old('first_name') }}">
                         <small class="field-error" data-error-for="first_name">
-                            @error('first_name')
-                                {{ $message }}
-                            @enderror
+                           
                         </small>
                     </div>
                     <div class="col-md-6">

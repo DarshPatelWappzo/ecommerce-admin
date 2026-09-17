@@ -63,7 +63,7 @@
                                 <td>
                                     <a class="btn btn-sm btn-outline-primary"
                                         href="{{ route('super-admin.package.edit', $package) }}">
-                                        <i class="fa-solid fa-pen-to-square me-1" aria-hidden="true"></i>Edit
+                                        <i class="fa-solid fa-pen-to-square me-1" aria-hidden="true"></i>
                                     </a>
                                 </td>
                             </tr>
