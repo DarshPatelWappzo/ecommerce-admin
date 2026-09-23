@@ -135,6 +135,77 @@ It creates a regular user and associated domains in a transaction. The password 
 
 ## Documentation
 
+### Customer management
+
+Customers and addresses live in each tenant database, independently from platform and tenant admin users. The admin sidebar links to the customer list, profile and address forms. India is the currently supported address country; state choices are configured in `config/customer_locations.php`.
+
+Deploy the additive schema and permission migrations with:
+
+```bash
+php artisan tenant:migrate-all --no-interaction
+```
+
+New tenant provisioning already runs this migration directory and the updated tenant seeder. Existing Admin roles receive the new permissions during migration; no reseeding is required. Grant `customers.view`, `customers.create`, `customers.update`, `customers.delete`, and `customers.addresses` to other roles as needed. Initial-address API creation requires both create and address-management permissions.
+
+The protected APIs use the existing `/api/tenant` prefix and bearer token authentication:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET / POST | `/api/tenant/customers` | List / create |
+| GET / PUT / PATCH / DELETE | `/api/tenant/customers/{customer}` | Show / update / soft delete |
+| PATCH | `/api/tenant/customers/{customer}/status` | Activate/deactivate |
+| GET / POST | `/api/tenant/customers/{customer}/addresses` | List / create addresses |
+| PUT / PATCH / DELETE | `/api/tenant/customers/{customer}/addresses/{address}` | Update / delete an owned address |
+| PATCH | `/api/tenant/customers/{customer}/addresses/{address}/default` | Change shipping/billing defaults |
+
+Create example (`Content-Type: application/json`, `Accept: application/json`, `Authorization: Bearer <token>`):
+
+```http
+POST /api/tenant/customers
+
+{
+  "first_name": "Asha",
+  "email": "asha@example.com",
+  "customer_type": "business",
+  "company_name": "Example Trading",
+  "gstin": null,
+  "address": {
+    "recipient_name": "Asha",
+    "phone_country_code": "+91",
+    "phone": "9876543210",
+    "address_line_1": "12 Market Road",
+    "city": "Ahmedabad",
+    "state_code": "GJ",
+    "country_code": "IN",
+    "postal_code": "380001"
+  }
+}
+```
+
+The `address` object is optional. On admin pages, add addresses from the customer details page after saving. Creates return 201; updates, deletion, and list/detail requests return 200. Validation errors use Laravel's 422 `message`/`errors` response. Missing records and addresses owned by another customer return 404; missing permissions return 403.
+
+List filters: `search`, `status`, `customer_type`, `joined_from`, `joined_to` (YYYY-MM-DD), `per_page` (1–100), `sort` (`created_at`, `customer_code`, `first_name`), and `direction` (`asc`, `desc`). Responses retain the project's top-level paginator format; single records are under `data`, with `message` on writes.
+
+Example partial updates:
+
+```http
+PATCH /api/tenant/customers/123
+
+{"notes": null}
+```
+
+```http
+PATCH /api/tenant/customers/123/addresses/456/default
+
+{"is_default_shipping": true, "is_default_billing": true}
+```
+
+Omitted fields are preserved; explicit null clears nullable fields. At least one contact must remain. Email is lowercased and reserved even after soft deletion. Phone formatting removes spaces, parentheses, dots and hyphens; calling codes are stored with `+`. Phone numbers are not unique because there is no customer login identifier in this application. Codes use ULIDs with a unique index. GSTIN is uppercased and checked for format only, without registration verification or uniqueness enforcement. Explicitly switching to Individual clears business name and GSTIN.
+
+The first address becomes both defaults. Later explicit flags change defaults under a transaction and parent-customer row lock. Deleting a default selects the oldest remaining address as replacement. Internal notes appear only in authorized admin pages/API resources; audit logs contain changed field names, status/type, record identifiers and default changes, not contact, address, GSTIN or note values.
+
+There is currently no customer login, order, invoice, payment, refund or self-service module. Future order integration should use nullable `customer_id` for guest checkout and immutable purchase-time customer/business/GSTIN/address snapshots. Customer/address updates must never rewrite those snapshots; historical orders should survive customer soft deletion. Spending summaries must follow the eventual paid/refunded status rules and remain separated by currency.
+
 ### Product tax assignment API
 
 Tenant product endpoints require a tenant bearer token and the existing `products.create`, `products.update`, or `products.view` permission for the action.

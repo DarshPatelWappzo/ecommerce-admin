@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\Tenant\TenantAuthController;
 use App\Http\Controllers\Api\Tenant\TenantCategoryController;
+use App\Http\Controllers\Api\Tenant\TenantCustomerAddressController;
+use App\Http\Controllers\Api\Tenant\TenantCustomerController;
 use App\Http\Controllers\Api\Tenant\TenantProductController;
 use App\Http\Controllers\Api\Tenant\TenantUserController;
 use App\Http\Controllers\Api\UserController;
@@ -26,6 +28,23 @@ Route::controller(TenantAuthController::class)->group(function (): void {
 });
 
 Route::middleware(AuthenticateTenantToken::class)->group(function (): void {
+    Route::prefix('tenant/customers')->name('api.tenant.customers.')->where(['customer' => '[0-9]+', 'address' => '[0-9]+'])->group(function (): void {
+        Route::controller(TenantCustomerController::class)->group(function (): void {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->name('store');
+            Route::get('/{customer}', 'show')->name('show');
+            Route::match(['put', 'patch'], '/{customer}', 'update')->name('update');
+            Route::patch('/{customer}/status', 'status')->name('status');
+            Route::delete('/{customer}', 'destroy')->name('destroy');
+        });
+        Route::controller(TenantCustomerAddressController::class)->group(function (): void {
+            Route::get('/{customer}/addresses', 'index')->name('addresses.index');
+            Route::post('/{customer}/addresses', 'store')->name('addresses.store');
+            Route::match(['put', 'patch'], '/{customer}/addresses/{address}', 'update')->name('addresses.update');
+            Route::patch('/{customer}/addresses/{address}/default', 'defaults')->name('addresses.default');
+            Route::delete('/{customer}/addresses/{address}', 'destroy')->name('addresses.destroy');
+        });
+    });
     Route::controller(TenantProductController::class)->group(function (): void {
         Route::get('/tenant/products', 'index')->name('api.tenant.products.index');
         Route::get('/tenant/products/create', 'create')->name('api.tenant.products.create');

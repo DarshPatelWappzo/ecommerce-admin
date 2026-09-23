@@ -8,6 +8,8 @@ use App\Http\Controllers\SuperAdmin\UserController;
 use App\Http\Controllers\TenantAuthController;
 use App\Http\Controllers\TenantCatalogController;
 use App\Http\Controllers\TenantCategoryController;
+use App\Http\Controllers\TenantCustomerAddressController;
+use App\Http\Controllers\TenantCustomerController;
 use App\Http\Controllers\TenantProductController;
 use App\Http\Controllers\TenantRoleController;
 use App\Http\Controllers\TenantTaxController;
@@ -37,6 +39,26 @@ Route::prefix('tenant')->name('tenant.')->group(function (): void {
             ->name('dashboard');
 
         Route::middleware(RequireTenantPasswordChange::class)->group(function (): void {
+            Route::prefix('customers')->name('customers.')->where(['customer' => '[0-9]+', 'address' => '[0-9]+'])->group(function (): void {
+                Route::controller(TenantCustomerController::class)->group(function (): void {
+                    Route::get('/', 'index')->name('index');
+                    Route::get('/create', 'create')->name('create');
+                    Route::post('/', 'store')->name('store');
+                    Route::get('/{customer}', 'show')->name('show');
+                    Route::get('/{customer}/edit', 'edit')->name('edit');
+                    Route::match(['put', 'patch'], '/{customer}', 'update')->name('update');
+                    Route::patch('/{customer}/status', 'status')->name('status');
+                    Route::delete('/{customer}', 'destroy')->name('destroy');
+                });
+                Route::controller(TenantCustomerAddressController::class)->group(function (): void {
+                    Route::get('/{customer}/addresses/create', 'create')->name('addresses.create');
+                    Route::post('/{customer}/addresses', 'store')->name('addresses.store');
+                    Route::get('/{customer}/addresses/{address}/edit', 'edit')->name('addresses.edit');
+                    Route::match(['put', 'patch'], '/{customer}/addresses/{address}', 'update')->name('addresses.update');
+                    Route::patch('/{customer}/addresses/{address}/default', 'defaults')->name('addresses.default');
+                    Route::delete('/{customer}/addresses/{address}', 'destroy')->name('addresses.destroy');
+                });
+            });
             Route::controller(TenantProductController::class)->group(function (): void {
                 Route::get('/products', 'index')->name('products.index');
                 Route::get('/products/create', 'create')->name('products.create');

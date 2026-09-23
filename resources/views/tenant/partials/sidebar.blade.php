@@ -50,11 +50,14 @@
                 <span>Products</span>
             </a>
 
-            <a class="sidebar-link {{ request()->routeIs('tenant.customers.*') ? 'active' : '' }}"
-                {{-- href="{{ route('tenant.products.index') }}"  --}} href="#" data-tooltip="Customers">
-                <i class="fa-solid fa-users" aria-hidden="true"></i>
-                <span>Customers</span>
-            </a>
+            @if (auth('tenant')->user()?->status === 'active' &&
+                    app(\App\Repositories\TenantRoleRepository::class)->userHasPermission(auth('tenant')->user(), 'customers.view'))
+                <a class="sidebar-link {{ request()->routeIs('tenant.customers.*') ? 'active' : '' }}"
+                    href="{{ route('tenant.customers.index') }}" data-tooltip="Customers">
+                    <i class="fa-solid fa-users" aria-hidden="true"></i>
+                    <span>Customers</span>
+                </a>
+            @endif
         </nav>
     </div>
 </aside>
