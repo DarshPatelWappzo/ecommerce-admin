@@ -16,59 +16,38 @@
         </div>
 
         <div class="dashboard-card">
-            <form data-tenant-user-form method="POST" novalidate
+            <form id="tenant-user-form" data-tenant-user-form method="POST" novalidate
                 action="{{ $user->exists ? route('tenant.users.update', $user) : route('tenant.users.store') }}">
                 @csrf
                 @if ($user->exists)
                     @method('PUT')
                 @endif
 
-                <div class="alert alert-danger d-none" data-form-error role="alert"></div>
+                @include('tenant.partials.validation-errors')
 
                 <div class="row g-4">
                     <div class="col-md-6">
                         <label class="form-label" for="first_name">First name</label>
                         <input class="form-control" id="first_name" name="first_name" type="text"
                             value="{{ old('first_name', $user->first_name) }}">
-                        <small class="field-error" data-error-for="first_name">
-                            @error('first_name')
-                                {{ $message }}
-                            @enderror
-                        </small>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" for="last_name">Last name</label>
                         <input class="form-control" id="last_name" name="last_name" type="text"
                             value="{{ old('last_name', $user->last_name) }}">
-                        <small class="field-error" data-error-for="last_name">
-                            @error('last_name')
-                                {{ $message }}
-                            @enderror
-                        </small>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" for="email">Email address</label>
                         <input class="form-control" id="email" name="email" type="email"
                             value="{{ old('email', $user->email) }}" @readonly($user->exists)>
-                        <small class="field-error" data-error-for="email">
-                            @if ($user->exists)
-                                Email cannot be changed.
-                            @else
-                                @error('email')
-                                    {{ $message }}
-                                @enderror
-                            @endif
-                        </small>
+                        @if ($user->exists)
+                            <div class="form-text">Email cannot be changed.</div>
+                        @endif
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" for="mobile_number">Mobile number</label>
                         <input class="form-control" id="mobile_number" name="mobile_number" type="tel"
                             value="{{ old('mobile_number', $user->mobile_number) }}">
-                        <small class="field-error" data-error-for="mobile_number">
-                            @error('mobile_number')
-                                {{ $message }}
-                            @enderror
-                        </small>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" for="role_id">Role</label>
@@ -80,11 +59,6 @@
                                 </option>
                             @endforeach
                         </select>
-                        <small class="field-error" data-error-for="role_id">
-                            @error('role_id')
-                                {{ $message }}
-                            @enderror
-                        </small>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" for="status">Status</label>
@@ -95,11 +69,6 @@
                             <option value="active" @selected(old('status', $user->status) === 'active')>Active</option>
                             <option value="inactive" @selected(old('status', $user->status) === 'inactive')>Inactive</option>
                         </select>
-                        <small class="field-error" data-error-for="status">
-                            @error('status')
-                                {{ $message }}
-                            @enderror
-                        </small>
                     </div>
                 </div>
 
@@ -116,5 +85,11 @@
 @endsection
 
 @push('scripts')
-    <script src="{{ asset('js/tenant-user-form.js') }}"></script>
+    <script src="{{ asset('vendor/jsvalidation/js/jsvalidation.js') }}"></script>
+    {!! JsValidator::formRequest(
+        $user->exists
+            ? \App\Http\Requests\TenantUserUpdateRequest::class
+            : \App\Http\Requests\TenantUserStoreRequest::class,
+        '#tenant-user-form',
+    ) !!}
 @endpush

@@ -6,8 +6,11 @@ use App\Http\Controllers\SuperAdmin\PackageController;
 use App\Http\Controllers\SuperAdmin\TenantProvisioningController;
 use App\Http\Controllers\SuperAdmin\UserController;
 use App\Http\Controllers\TenantAuthController;
+use App\Http\Controllers\TenantCatalogController;
 use App\Http\Controllers\TenantCategoryController;
+use App\Http\Controllers\TenantProductController;
 use App\Http\Controllers\TenantRoleController;
+use App\Http\Controllers\TenantTaxController;
 use App\Http\Controllers\TenantUserController;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\RequireTenantPasswordChange;
@@ -34,7 +37,21 @@ Route::prefix('tenant')->name('tenant.')->group(function (): void {
             ->name('dashboard');
 
         Route::middleware(RequireTenantPasswordChange::class)->group(function (): void {
+            Route::controller(TenantProductController::class)->group(function (): void {
+                Route::get('/products', 'index')->name('products.index');
+                Route::get('/products/create', 'create')->name('products.create');
+                Route::post('/products', 'store')->name('products.store');
+                Route::get('/products/{product}/edit', 'edit')->name('products.edit');
+                Route::put('/products/{product}', 'update')->name('products.update');
+                Route::delete('/products/{product}', 'destroy')->name('products.destroy');
+            });
+            Route::controller(TenantCatalogController::class)->group(function (): void {
+                Route::get('/catalog-settings', 'index')->name('catalog.index');
+                Route::post('/catalog-settings/tags', 'saveTag')->name('catalog.tags');
+                Route::post('/catalog-settings/attributes', 'saveAttribute')->name('catalog.attributes');
+            });
             Route::resource('categories', TenantCategoryController::class)->only(['index', 'create', 'store', 'edit', 'update'])->names('categories');
+            Route::resource('taxes', TenantTaxController::class)->only(['index', 'create', 'store', 'edit', 'update'])->names('taxes');
             Route::resource('roles', TenantRoleController::class)->except(['show'])->names('roles');
             Route::resource('users', TenantUserController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])->names('users');
         });

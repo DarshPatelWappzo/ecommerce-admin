@@ -16,6 +16,7 @@
 
             window.jQuery(select).select2({
                 placeholder,
+                allowClear: select.dataset.allowClear === 'true',
                 width: '100%',
                 closeOnSelect: !select.multiple,
             }).on('select2:select select2:unselect select2:clear', () => {

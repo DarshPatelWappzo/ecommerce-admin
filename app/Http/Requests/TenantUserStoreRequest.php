@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Tenant\User;
+use App\Repositories\TenantRoleRepository;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -21,7 +22,10 @@ class TenantUserStoreRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user('tenant');
+
+        return $user instanceof User && $user->status === 'active'
+            && app(TenantRoleRepository::class)->userHasPermission($user, 'users.create');
     }
 
     /**

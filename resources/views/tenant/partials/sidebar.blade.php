@@ -31,20 +31,27 @@
                 <i class="fa-solid fa-users" aria-hidden="true"></i>
                 <span>Users</span>
             </a>
+            @if (auth('tenant')->user()?->status === 'active' &&
+                    app(\App\Repositories\TenantRoleRepository::class)->userHasPermission(auth('tenant')->user(), 'taxes.view'))
+                <a class="sidebar-link {{ request()->routeIs('tenant.taxes.*') ? 'active' : '' }}"
+                    href="{{ route('tenant.taxes.index') }}" data-tooltip="Taxes">
+                    <i class="fa-solid fa-percent" aria-hidden="true"></i>
+                    <span>Taxes</span>
+                </a>
+            @endif
             <a class="sidebar-link {{ request()->routeIs('tenant.categories.*') ? 'active' : '' }}"
                 href="{{ route('tenant.categories.index') }}" data-tooltip="Categories">
                 <i class="fa-solid fa-list" aria-hidden="true"></i>
                 <span>Categories</span>
             </a>
             <a class="sidebar-link {{ request()->routeIs('tenant.products.*') ? 'active' : '' }}"
-                {{-- href="{{ route('tenant.products.index') }}"  --}}
-                href="#" data-tooltip="Products">
+                href="{{ route('tenant.products.index') }}" data-tooltip="Products">
                 <i class="fa-solid fa-box" aria-hidden="true"></i>
                 <span>Products</span>
             </a>
+
             <a class="sidebar-link {{ request()->routeIs('tenant.customers.*') ? 'active' : '' }}"
-                {{-- href="{{ route('tenant.products.index') }}"  --}}
-                href="#" data-tooltip="Customers">
+                {{-- href="{{ route('tenant.products.index') }}"  --}} href="#" data-tooltip="Customers">
                 <i class="fa-solid fa-users" aria-hidden="true"></i>
                 <span>Customers</span>
             </a>

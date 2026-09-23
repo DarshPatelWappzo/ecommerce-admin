@@ -24,10 +24,10 @@
                 <div class="row g-3 mb-4">
                     <div class="col-md-6"><label class="form-label" for="name">Role name <span
                                 class="text-danger">*</span></label><input class="form-control" id="name"
-                            name="name" value="{{ old('name', $role->name) }}"><small class="field-error"
-                            data-error-for="name"></small></div>
+                            name="name" value="{{ old('name', $role->name) }}"><span class="field-error"
+                            data-error-for="name"></span></div>
                     <div class="col-md-6"><label class="form-label" for="description">Role description</label>
-                        <textarea class="form-control" id="description" name="description" rows="1">{{ old('description', $role->description) }}</textarea><small class="field-error" data-error-for="description"></small>
+                        <textarea class="form-control" id="description" name="description" rows="1">{{ old('description', $role->description) }}</textarea><span class="field-error" data-error-for="description"></span>
                     </div>
                 </div>
                 <div class="d-flex align-items-center justify-content-between mb-2">
@@ -77,7 +77,7 @@
                         </tbody>
                     </table>
                 </div>
-                <small class="field-error" data-error-for="permissions"></small>
+                <span class="field-error" data-error-for="permissions"></span>
                 <div class="form-check form-switch mt-4"><input type="hidden" name="status" value="0"><input
                         class="form-check-input" type="checkbox" id="status" name="status" value="1"
                         {{ old('status', $role->status) ? 'checked' : '' }}><label class="form-check-label"

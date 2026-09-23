@@ -21,7 +21,7 @@ class TenantUserCreationService
     public function create(array $data, string $domain): User
     {
 
-        $temporaryPassword = Str::ucfirst(Str::lower(Str::password(5, letters: true, numbers: false, symbols: false))).'@'.random_int(100, 999);
+        $temporaryPassword = Str::ucfirst(Str::lower(Str::password(5, letters: true, numbers: false, symbols: false))) . '@' . random_int(100, 999);
         $attributes = [];
         $attributes['first_name'] = trim($data['first_name']);
         $attributes['last_name'] = trim($data['last_name']);

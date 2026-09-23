@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Tenant\User;
+use App\Repositories\TenantRoleRepository;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
@@ -12,7 +14,12 @@ class TenantUserUpdateRequest extends TenantUserStoreRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $user = $this->user('tenant');
+        $roles = app(TenantRoleRepository::class);
+
+        return $user instanceof User && $user->status === 'active'
+            && $roles->userHasPermission($user, 'users.update')
+            && $roles->userHasPermission($user, 'roles.update');
     }
 
     /**

@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\Api\Tenant\TenantAuthController;
 use App\Http\Controllers\Api\Tenant\TenantCategoryController;
+use App\Http\Controllers\Api\Tenant\TenantProductController;
 use App\Http\Controllers\Api\Tenant\TenantUserController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\TenantCatalogController;
 use App\Http\Middleware\AuthenticateTenantToken;
 use App\Http\Middleware\ResolveTenant;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +26,20 @@ Route::controller(TenantAuthController::class)->group(function (): void {
 });
 
 Route::middleware(AuthenticateTenantToken::class)->group(function (): void {
+    Route::controller(TenantProductController::class)->group(function (): void {
+        Route::get('/tenant/products', 'index')->name('api.tenant.products.index');
+        Route::get('/tenant/products/create', 'create')->name('api.tenant.products.create');
+        Route::post('/tenant/products', 'store')->name('api.tenant.products.store');
+        Route::get('/tenant/products/{product}', 'show')->name('api.tenant.products.show');
+        Route::get('/tenant/products/{product}/edit', 'edit')->name('api.tenant.products.edit');
+        Route::match(['put', 'patch'], '/tenant/products/{product}', 'update')->name('api.tenant.products.update');
+        Route::delete('/tenant/products/{product}', 'destroy')->name('api.tenant.products.destroy');
+    });
+    Route::controller(TenantCatalogController::class)->group(function (): void {
+        Route::get('/tenant/catalog-settings', 'index')->name('api.tenant.catalog.index');
+        Route::post('/tenant/catalog-settings/tags', 'saveTag')->name('api.tenant.catalog.tags');
+        Route::post('/tenant/catalog-settings/attributes', 'saveAttribute')->name('api.tenant.catalog.attributes');
+    });
     Route::controller(TenantCategoryController::class)->group(function (): void {
         Route::get('/tenant/categories', 'index')->name('api.tenant.categories.index');
         Route::get('/tenant/categories/create', 'create')->name('api.tenant.categories.create');

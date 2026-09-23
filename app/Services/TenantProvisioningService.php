@@ -91,7 +91,7 @@ class TenantProvisioningService
                 }
             }
         } catch (Throwable $exception) {
-            $tenantDatabase->update(['status' => 'failed', 'provisioning_error' => 'Tenant provisioning failed: '.class_basename($exception)]);
+            $tenantDatabase->update(['status' => 'failed', 'provisioning_error' => 'Tenant provisioning failed: ' . class_basename($exception)]);
             Log::error('Tenant provisioning failed', ['central_user_id' => $centralUser->id, 'domain_id' => $domain->id, 'database_name' => $databaseName, 'exception' => $exception]);
         } finally {
             $this->connectionManager->disconnect();

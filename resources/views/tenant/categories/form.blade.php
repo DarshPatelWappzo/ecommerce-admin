@@ -11,20 +11,19 @@
             <p class="text-primary fw-semibold mb-1">Categories</p>
             <h1 class="page-title mb-1">{{ $category ? 'Edit Category' : 'Add Category' }}</h1>
         </div>
-        <form data-tenant-category-form data-save-error="Unable to save the category. Please try again." method="POST"
+        <form id="tenant-category-form" data-tenant-category-form method="POST" novalidate
             action="{{ $category ? route('tenant.categories.update', $category->id) : route('tenant.categories.store') }}">
             @csrf
             @if ($category)
                 @method('PUT')
             @endif
             <section class="dashboard-card">
-                <div class="alert alert-danger d-none" data-form-error role="alert"></div>
+                @include('tenant.partials.validation-errors')
                 <div class="row g-4">
                     <div class="col-md-6">
                         <label class="form-label" for="name">Category name <span class="text-danger">*</span></label>
                         <input class="form-control" id="name" name="name"
                             value="{{ old('name', $category?->name) }}" maxlength="255">
-                        <small class="field-error" data-error-for="name" aria-live="polite"></small>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" for="slug">Slug</label>
@@ -42,7 +41,6 @@
                                     {{ $parentCategory->name ?: 'Unnamed category' }}</option>
                             @endforeach
                         </select>
-                        <small class="field-error" data-error-for="parent_id" aria-live="polite"></small>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" for="status">Status <span class="text-danger">*</span></label>
@@ -50,7 +48,6 @@
                             <option value="1" @selected((string) old('status', $category?->status ?? 1) === '1')>Active</option>
                             <option value="0" @selected((string) old('status', $category?->status ?? 1) === '0')>Inactive</option>
                         </select>
-                        <small class="field-error" data-error-for="status" aria-live="polite"></small>
                     </div>
                 </div>
                 <div class="d-flex justify-content-end gap-2 mt-4 pt-4 border-top">
@@ -63,7 +60,8 @@
 @endsection
 
 @push('scripts')
-    <script src="{{ asset('js/tenant-user-form.js') }}"></script>
+    <script src="{{ asset('vendor/jsvalidation/js/jsvalidation.js') }}"></script>
+    {!! JsValidator::formRequest(\App\Http\Requests\TenantCategorySaveRequest::class, '#tenant-category-form') !!}
     <script>
         const categoryName = document.getElementById('name');
         const categorySlug = document.getElementById('slug');

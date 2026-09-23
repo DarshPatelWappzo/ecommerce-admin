@@ -25,7 +25,8 @@ class TenantCategorySaveRequest extends FormRequest
         $user = $this->user('tenant');
 
         return $user instanceof User && app(TenantRoleRepository::class)->userHasPermission(
-            $user, $this->routeIs('tenant.categories.store') ? 'categories.create' : 'categories.update',
+            $user,
+            $this->routeIs('tenant.categories.store') ? 'categories.create' : 'categories.update',
         );
     }
 
@@ -39,7 +40,9 @@ class TenantCategorySaveRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'parent_id' => [
-                'nullable', 'integer', Rule::exists('tenant.categories', 'id')->whereNull('deleted_at'),
+                'nullable',
+                'integer',
+                Rule::exists('tenant.categories', 'id')->whereNull('deleted_at'),
                 Rule::notIn(app(TenantCategoryRepository::class)->excludedParentIds(
                     $this->route('category') === null ? null : (int) $this->route('category'),
                 )),

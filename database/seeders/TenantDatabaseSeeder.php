@@ -28,11 +28,14 @@ class TenantDatabaseSeeder extends Seeder
             'products.create',
             'products.update',
             'products.delete',
+            'taxes.view',
+            'taxes.create',
+            'taxes.update',
             'orders.view',
             'orders.update',
             'inventory.view',
             'inventory.update',
-        ])->mapWithKeys(fn (string $slug): array => [$slug => Permission::firstOrCreate([
+        ])->mapWithKeys(fn(string $slug): array => [$slug => Permission::firstOrCreate([
             'slug' => $slug,
         ], ['name' => str($slug)->replace('.', ' ')->title()->toString()])]);
 

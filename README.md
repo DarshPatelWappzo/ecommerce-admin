@@ -135,5 +135,16 @@ It creates a regular user and associated domains in a transaction. The password 
 
 ## Documentation
 
+### Product tax assignment API
+
+Tenant product endpoints require a tenant bearer token and the existing `products.create`, `products.update`, or `products.view` permission for the action.
+
+- `GET /api/tenant/products/create` includes `taxes`: active, non-deleted choices. The edit endpoint (`GET /api/tenant/products/{product}/edit`) also includes the current tax even if unavailable.
+- `POST /api/tenant/products` accepts optional `tax_id` alongside the existing product payload. Omitted or null means tax is not configured.
+- `PUT`/`PATCH /api/tenant/products/{product}` accepts `tax_id`. Omit it to preserve the assignment, send null to clear it, or send an available tenant tax ID to change it. Existing inactive/deleted assignments may be retained. Invalid or unavailable new assignments return normal 422 field errors.
+- Product list, detail, create and update responses retain their envelopes and include `tax_id` and nullable `tax`. A configured tax exposes `id`, `name`, `code`, `rate` (four-decimal string, e.g. `"18.1234"`), `is_active`, and `is_available`. A soft-deleted or inactive tax has `is_available: false`. Null is distinct from an explicitly assigned zero-rate tax.
+
+Apply the additive tenant migration with `php artisan tenant:migrate-all --no-interaction`. New tenant provisioning runs the same tenant migration directory automatically. Existing products retain null tax assignments. This feature does not change pricing, checkout, or historical order/invoice tax values.
+
 - [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md): application behavior and architecture.
 - [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md): tables, fields, relationships, and data flow.
