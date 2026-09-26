@@ -10,6 +10,7 @@ use App\Http\Controllers\TenantCatalogController;
 use App\Http\Controllers\TenantCategoryController;
 use App\Http\Controllers\TenantCustomerAddressController;
 use App\Http\Controllers\TenantCustomerController;
+use App\Http\Controllers\TenantOrderController;
 use App\Http\Controllers\TenantProductController;
 use App\Http\Controllers\TenantRoleController;
 use App\Http\Controllers\TenantTaxController;
@@ -39,6 +40,22 @@ Route::prefix('tenant')->name('tenant.')->group(function (): void {
             ->name('dashboard');
 
         Route::middleware(RequireTenantPasswordChange::class)->group(function (): void {
+            Route::prefix('orders')->name('orders.')->where(['order' => '[0-9]+'])->controller(TenantOrderController::class)->group(function (): void {
+                Route::get('/', 'index')->name('index');
+                Route::post('/', 'store')->name('store');
+                Route::get('/options', 'options')->name('options');
+                Route::post('/preview', 'preview')->name('preview');
+                Route::get('/create', 'create')->name('create');
+                Route::get('/{order}/edit', 'edit')->name('edit');
+                Route::get('/{order}', 'show')->name('show');
+                Route::patch('/{order}', 'update')->name('update');
+                Route::post('/{order}/confirm', 'confirm')->name('confirm');
+                Route::post('/{order}/process', 'process')->name('process');
+                Route::post('/{order}/cancel', 'cancel')->name('cancel');
+                Route::post('/{order}/payments', 'payments')->name('payments');
+                Route::post('/{order}/shipments', 'ship')->name('ship');
+                Route::post('/{order}/deliver', 'deliver')->name('deliver');
+            });
             Route::prefix('customers')->name('customers.')->where(['customer' => '[0-9]+', 'address' => '[0-9]+'])->group(function (): void {
                 Route::controller(TenantCustomerController::class)->group(function (): void {
                     Route::get('/', 'index')->name('index');

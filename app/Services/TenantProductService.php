@@ -16,6 +16,13 @@ class TenantProductService
 {
     public function __construct(private readonly TenantProductRepository $products, private readonly AuditLogService $audit) {}
 
+    /**
+     * Persist a product and its related variants, attributes, and images in a tenant transaction.
+     *
+     * @param  array  $data  The validated product payload including nested variants and images.
+     * @param  int|null  $id  The product identifier when updating an existing record.
+     * @return Product The saved product instance with refreshed relationships.
+     */
     public function save(array $data, ?int $id = null): Product
     {
         $uploaded = [];
@@ -24,7 +31,7 @@ class TenantProductService
             $product = DB::connection('tenant')->transaction(function () use ($data, $id, &$uploaded, &$obsolete): Product {
                 $product = $id ? $this->products->find($id, true) : new Product;
                 $before = $id ? $product->toArray() : null;
-                $fields = Arr::only($data, ['name', 'slug', 'product_type', 'short_description', 'description', 'status', 'featured', 'meta_title', 'meta_description', 'tax_id']);
+                $fields = Arr::only($data, ['name', 'slug', 'product_type', 'short_description', 'description', 'status', 'featured', 'meta_title', 'meta_description', 'tax_id', 'hsn_code']);
                 if (empty($fields['slug'])) {
                     $fields['slug'] = $product->slug ?: $this->products->uniqueSlug($fields['name']);
                 }
@@ -78,11 +85,16 @@ class TenantProductService
         return $product;
     }
 
+    /**
+     * Remove a product after validating that it has no reserved stock.
+     *
+     * @param  int  $id  The product identifier to delete.
+     */
     public function delete(int $id): void
     {
         DB::connection('tenant')->transaction(function () use ($id): void {
             $product = $this->products->find($id, true);
-            if ($product->variants->contains(fn ($variant) => $variant->reserved_quantity > 0)) {
+            if ($product->variants()->orderBy('id')->lockForUpdate()->get()->contains(fn ($variant) => $variant->reserved_quantity > 0)) {
                 throw ValidationException::withMessages(['product' => 'Products with reserved stock cannot be deleted.']);
             }
             $before = $product->toArray();
@@ -93,6 +105,11 @@ class TenantProductService
         });
     }
 
+    /**
+     * Delete uploaded product image files when a transaction fails during a save operation.
+     *
+     * @param  array  $paths  The storage paths queued for cleanup.
+     */
     private function deleteFiles(array $paths): void
     {
         foreach (array_unique($paths) as $path) {

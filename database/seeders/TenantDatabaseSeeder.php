@@ -38,9 +38,18 @@ class TenantDatabaseSeeder extends Seeder
             'customers.addresses',
             'orders.view',
             'orders.update',
+            'orders.create',
+            'orders.confirm',
+            'orders.process',
+            'orders.cancel',
+            'orders.payments',
+            'orders.ship',
+            'orders.deliver',
+            'orders.price_override',
+            'orders.discount',
             'inventory.view',
             'inventory.update',
-        ])->mapWithKeys(fn(string $slug): array => [$slug => Permission::firstOrCreate([
+        ])->mapWithKeys(fn (string $slug): array => [$slug => Permission::firstOrCreate([
             'slug' => $slug,
         ], ['name' => str($slug)->replace('.', ' ')->title()->toString()])]);
 

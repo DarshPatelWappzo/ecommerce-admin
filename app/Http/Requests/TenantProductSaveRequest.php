@@ -37,6 +37,7 @@ class TenantProductSaveRequest extends TenantProductRequest
         $productId = $this->route('product');
         $currentTaxId = $productId !== null ? Product::findOrFail($productId)->tax_id : null;
         $rules = [
+            'hsn_code' => ['nullable', 'string', 'max:20'],
             'tax_id' => ['nullable', 'integer', Rule::exists('tenant.taxes', 'id')->where(function (Builder $query) use ($currentTaxId): void {
                 $query->where(function (Builder $query) use ($currentTaxId): void {
                     $query->where(fn (Builder $available) => $available->where('is_active', true)->whereNull('deleted_at'));

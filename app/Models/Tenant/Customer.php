@@ -30,4 +30,9 @@ class Customer extends TenantModel
     {
         return 'customers';
     }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
 }

@@ -37,12 +37,19 @@
                         <select class="form-select" id="tax_id" name="tax_id" data-allow-clear="true">
                             <option value="">Tax not configured</option>
                             @foreach ($catalog['taxes'] as $tax)
-                                <option value="{{ $tax->id }}" @selected((string) old('tax_id', $product?->tax_id) === (string) $tax->id)>{{ $tax->name }} — {{ rtrim(rtrim($tax->rate, '0'), '.') }}%{{ $tax->trashed() ? ' (Deleted)' : ($tax->is_active ? '' : ' (Inactive)') }}</option>
+                                <option value="{{ $tax->id }}" @selected((string) old('tax_id', $product?->tax_id) === (string) $tax->id)>{{ $tax->name }} —
+                                    {{ rtrim(rtrim($tax->rate, '0'), '.') }}%{{ $tax->trashed() ? ' (Deleted)' : ($tax->is_active ? '' : ' (Inactive)') }}
+                                </option>
                             @endforeach
                         </select>
                         @error('tax_id')
                             <div class="alert alert-danger mt-2" role="alert">{{ $message }}</div>
                         @enderror
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="hsn_code">HSN code (optional)</label>
+                        <input class="form-control" id="hsn_code" name="hsn_code" maxlength="20"
+                            value="{{ old('hsn_code', $product?->hsn_code) }}">
                     </div>
                     @foreach (['short_description' => 'Short description', 'description' => 'Description'] as $field => $label)
                         <div class="col-12"><label class="form-label"
@@ -115,6 +122,11 @@
 @endsection
 @push('scripts')
     <script src="{{ asset('vendor/jsvalidation/js/jsvalidation.js') }}"></script>
-    {!! JsValidator::make(['tax_id' => ['nullable', 'integer', Illuminate\Validation\Rule::in($catalog['taxes']->modelKeys())]], [], [], '[data-product-form]') !!}
+    {!! JsValidator::make(
+        ['tax_id' => ['nullable', 'integer', Illuminate\Validation\Rule::in($catalog['taxes']->modelKeys())]],
+        [],
+        [],
+        '[data-product-form]',
+    ) !!}
     <script src="{{ asset('js/product-form.js') }}"></script>
 @endpush

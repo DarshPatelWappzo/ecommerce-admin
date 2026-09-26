@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Tenant\TenantAuthController;
 use App\Http\Controllers\Api\Tenant\TenantCategoryController;
 use App\Http\Controllers\Api\Tenant\TenantCustomerAddressController;
 use App\Http\Controllers\Api\Tenant\TenantCustomerController;
+use App\Http\Controllers\Api\Tenant\TenantOrderController;
 use App\Http\Controllers\Api\Tenant\TenantProductController;
 use App\Http\Controllers\Api\Tenant\TenantUserController;
 use App\Http\Controllers\Api\UserController;
@@ -28,6 +29,20 @@ Route::controller(TenantAuthController::class)->group(function (): void {
 });
 
 Route::middleware(AuthenticateTenantToken::class)->group(function (): void {
+    Route::prefix('tenant/orders')->name('api.tenant.orders.')->where(['order' => '[0-9]+'])->controller(TenantOrderController::class)->group(function (): void {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::get('/options', 'options')->name('options');
+        Route::post('/preview', 'preview')->name('preview');
+        Route::get('/{order}', 'show')->name('show');
+        Route::patch('/{order}', 'update')->name('update');
+        Route::post('/{order}/confirm', 'confirm')->name('confirm');
+        Route::post('/{order}/process', 'process')->name('process');
+        Route::post('/{order}/cancel', 'cancel')->name('cancel');
+        Route::post('/{order}/payments', 'payments')->name('payments');
+        Route::post('/{order}/shipments', 'ship')->name('ship');
+        Route::post('/{order}/deliver', 'deliver')->name('deliver');
+    });
     Route::prefix('tenant/customers')->name('api.tenant.customers.')->where(['customer' => '[0-9]+', 'address' => '[0-9]+'])->group(function (): void {
         Route::controller(TenantCustomerController::class)->group(function (): void {
             Route::get('/', 'index')->name('index');

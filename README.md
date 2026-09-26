@@ -204,7 +204,7 @@ Omitted fields are preserved; explicit null clears nullable fields. At least one
 
 The first address becomes both defaults. Later explicit flags change defaults under a transaction and parent-customer row lock. Deleting a default selects the oldest remaining address as replacement. Internal notes appear only in authorized admin pages/API resources; audit logs contain changed field names, status/type, record identifiers and default changes, not contact, address, GSTIN or note values.
 
-There is currently no customer login, order, invoice, payment, refund or self-service module. Future order integration should use nullable `customer_id` for guest checkout and immutable purchase-time customer/business/GSTIN/address snapshots. Customer/address updates must never rewrite those snapshots; historical orders should survive customer soft deletion. Spending summaries must follow the eventual paid/refunded status rules and remain separated by currency.
+Customers do not have login or self-service routes. Tenant staff orders use nullable `customer_id` for guests and immutable submitted customer/business/GSTIN/address snapshots. Customer/address edits do not rewrite those snapshots; orders survive customer removal. There is no refund or invoice workflow in this release.
 
 ### Product tax assignment API
 
@@ -219,3 +219,102 @@ Apply the additive tenant migration with `php artisan tenant:migrate-all --no-in
 
 - [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md): application behavior and architecture.
 - [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md): tables, fields, relationships, and data flow.
+
+### Tenant order management
+
+Apply the additive migrations to existing tenants:
+
+```sh
+php artisan tenant:migrate-all --no-interaction
+```
+
+New tenants receive the same migrations through the existing provisioning flow and `TenantDatabaseSeeder`. No central order tables are added. The preparation migration adds nullable product `hsn_code` and converts existing MySQL/MariaDB `users`, `customers`, `products`, `product_variants`, `taxes`, and `audit_logs` tables to InnoDB if needed. This preserves rows and enables transactions, row locks and order foreign keys. Engine conversion can lock large tables; schedule this migration during a maintenance window with a database backup. It is intentionally not reversed on rollback. The next migrations create the order tables, stock movement ledger and durable idempotency records, and grant order permissions to existing Admin roles.
+
+Permissions: `orders.view`, `orders.create`, `orders.update`, `orders.confirm`, `orders.process`, `orders.cancel`, `orders.payments`, `orders.ship`, `orders.deliver`, `orders.price_override`, `orders.discount`. View and update reuse existing permissions; the remaining nine are new. Other roles must receive the appropriate permissions through Roles. Admin browser routes are under `/tenant/orders`; bearer-authenticated staff APIs follow the existing `/api/tenant` convention.
+
+| Method | Path | Behavior |
+| --- | --- | --- |
+| GET / POST | `/api/tenant/orders` | Paginated list / create |
+| GET / PATCH | `/api/tenant/orders/{order}` | Details / draft-only edits |
+| GET | `/api/tenant/orders/options?kind=customers&search=Asha` | Active customer choices and address prefills |
+| GET | `/api/tenant/orders/options?kind=variants&search=shirt` | Active variant choices, SKU, price and available stock |
+| GET | `/api/tenant/orders/options?kind=taxes&search=GST` | Active shipping-tax choices with precise rates |
+| POST | `/api/tenant/orders/preview` | Shared authoritative calculation, no writes |
+| POST | `/api/tenant/orders/{order}/confirm` | Confirm and reserve stock |
+| POST | `/api/tenant/orders/{order}/process` | Begin processing |
+| POST | `/api/tenant/orders/{order}/cancel` | Cancel before shipment; requires `comment` |
+| POST | `/api/tenant/orders/{order}/payments` | Record an offline/COD receipt |
+| POST | `/api/tenant/orders/{order}/shipments` | Ship and deduct stock once |
+| POST | `/api/tenant/orders/{order}/deliver` | Mark delivered without another stock deduction |
+
+List filters: `search` (number, customer name/email), `from`, `to` (YYYY-MM-DD), `status`, `payment_status`, `payment_method`, and `per_page` (1–100). Filters are preserved in pagination; payment filtering uses existence queries to avoid duplicate orders. List responses use the existing top-level paginator envelope; single records use `data`, with `message` on writes. Amounts are two-decimal strings and tax rates four-decimal strings.
+
+Send `Authorization: Bearer <tenant-token>`, `Accept: application/json`, and `Content-Type: application/json`. Create and payment requests require a unique `Idempotency-Key` header (or `idempotency_key` body field; the header takes precedence), containing up to 128 letters, digits, underscores or hyphens. Keys are durable, scoped to the tenant, staff member and operation. Identical retries return the original response, even if the order/catalog has since changed. Reusing a key for different normalized input returns 409; validation failures return 422 and do not consume the key. Use a new key for a new operation, retain it when retrying an uncertain network result.
+
+Create example (replace IDs with the current tenant's IDs):
+
+```http
+POST /api/tenant/orders
+Idempotency-Key: order-2026-0001
+
+{
+  "customer_id": null,
+  "customer_name": "Asha",
+  "customer_email": "asha@example.com",
+  "currency": "INR",
+  "billing": {
+    "name": "Asha",
+    "phone": "+91 9876543210",
+    "address_line_1": "12 Market Road",
+    "city": "Ahmedabad",
+    "state_code": "GJ",
+    "country_code": "IN",
+    "postal_code": "380001"
+  },
+  "same_as_billing": true,
+  "items": [{"product_id": 12, "product_variant_id": 34, "quantity": 2}],
+  "shipping_amount": "50.00",
+  "shipping_tax_id": 3,
+  "payment_method": "cod",
+  "submit_as": "draft"
+}
+```
+
+A selected active customer supplies the authoritative contact/company/GSTIN snapshot. For guests, provide a name and email or phone. Addresses are copied, not linked; only India and configured states are supported. Omit `same_as_billing` or set false to supply a separate `shipping` address with the same fields. Optional `customer_note` and `internal_note` are staff-only. `submit_as` accepts draft (default), pending or confirmed; direct confirmation also requires `orders.confirm`. PATCH preserves omitted fields, replaces supplied item/address arrays, and is limited to drafts.
+
+Preview accepts `items`, `shipping_amount` and `shipping_tax_id`; it returns items, totals and a `fingerprint`. Include that value as `expected_pricing_fingerprint` when creating/updating with `submit_as: confirmed` to reject changed totals. The admin form does this automatically. Confirming an existing draft separately also verifies its saved price/tax fingerprint; changed catalog details require reopening and saving the draft first.
+
+Prices are tax-exclusive, in INR. Each item requires an active configured product tax (including an explicitly configured 0% tax); unavailable or unknown taxes are rejected, including drafts. Shipping greater than zero requires an active tax selected from Taxes. Shipping tax is included exactly once in `tax_total`. Tax uses decimal arithmetic and half-up rounding to two decimals per item and once for shipping; `rounding_adjustment` is `0.00`. CGST/SGST/IGST values remain null because jurisdiction/component rules are not configured. GSTIN never determines tax. Authorized item `unit_price` overrides and absolute `discount_amount` reductions are supported; discounts cannot exceed the line subtotal. The calculator's item-discount stage is the future coupon integration point; there are no coupon tables or redemption flows.
+
+HSN is a nullable string of up to 20 characters on product add/edit and product APIs, preserved as text (including leading zeroes) and copied to order items. Subsequent catalog, tax and customer changes never rewrite submitted snapshots. Pending orders retain their submitted prices and cannot be edited; cancel/recreate if changes are needed. Confirmation rechecks active products/variants/taxes and available stock.
+
+Lifecycle: draft → pending/confirmed/cancelled; pending → confirmed/cancelled; confirmed → processing/cancelled; processing → shipped/cancelled; shipped → delivered. Draft/pending do not reserve inventory. Confirmation reserves, shipment reduces on-hand and releases the reservation, pre-shipment cancellation releases once, and delivery does not change inventory. Order/product/variant locks and a unique stock-event ledger protect retries and stock contention. Product edits cannot reduce stock or reservations below order commitments; reserved variants cannot be removed.
+
+Payment example:
+
+```http
+POST /api/tenant/orders/123/payments
+Idempotency-Key: receipt-2026-0001
+
+{"method":"bank_transfer","reference_number":"BANK-REF-123","amount":"100.00","currency":"INR"}
+```
+
+Supported receipt methods are `cod`, `cash`, and `bank_transfer`. References are required, trimmed, uppercased and unique per order/method. Only captured receipts count towards received/outstanding and paid/partially_paid status; selecting COD records a pending intent, not receipt of funds. The server rejects overpayment, payments against draft/cancelled orders, and client attempts to record online payments. It preserves separate receipt attempts. Captured funds block cancellation because no refund workflow exists. Gateway identity columns are reserved with a provider/account/payment unique index; no online capture endpoint or SaaS subscription reuse is introduced.
+
+Other action examples:
+
+```http
+POST /api/tenant/orders/123/confirm
+{}
+
+POST /api/tenant/orders/123/process
+{"comment":"Ready for dispatch"}
+
+POST /api/tenant/orders/123/shipments
+{"courier_name":"Example Courier","tracking_number":"TRACK-123","tracking_url":"https://example.com/track/TRACK-123"}
+
+POST /api/tenant/orders/123/deliver
+{"comment":"Delivered"}
+```
+
+Cancellation requires `{"comment":"Customer requested cancellation"}` on its own endpoint. No hard-delete endpoint is provided. No Postman collection exists in this repository; these examples document the API contract. Run focused verification with `php artisan test --compact tests/Feature/TenantOrderManagementTest.php`. Tests use isolated SQLite databases; they cover transactional rollback and sequential overselling/retry scenarios, but do not prove concurrent InnoDB locking. Verify simultaneous confirmations/receipts against an isolated MySQL/InnoDB staging database before deployment.

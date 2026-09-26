@@ -3,7 +3,8 @@
         $(@json($validator['selector'])).each(function() {
             const form = $(this);
             form.validate({
-                onsubmit: !form.is('[data-product-form]'),
+                onsubmit: !form.is(
+                    '[data-product-form], [data-order-form], [data-order-action]'),
                 errorElement: 'span',
                 errorClass: 'field-error',
                 ignore: @json($validator['ignore']),
