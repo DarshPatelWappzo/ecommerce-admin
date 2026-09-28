@@ -12,6 +12,10 @@ class TenantDatabaseSeeder extends Seeder
     {
         $permissions = collect([
             'dashboard.view',
+            'coupons.view',
+            'coupons.create',
+            'coupons.update',
+            'coupons.delete',
             'users.view',
             'users.create',
             'users.update',
@@ -49,7 +53,7 @@ class TenantDatabaseSeeder extends Seeder
             'orders.discount',
             'inventory.view',
             'inventory.update',
-        ])->mapWithKeys(fn (string $slug): array => [$slug => Permission::firstOrCreate([
+        ])->mapWithKeys(fn(string $slug): array => [$slug => Permission::firstOrCreate([
             'slug' => $slug,
         ], ['name' => str($slug)->replace('.', ' ')->title()->toString()])]);
 

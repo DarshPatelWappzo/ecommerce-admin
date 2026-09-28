@@ -318,3 +318,51 @@ POST /api/tenant/orders/123/deliver
 ```
 
 Cancellation requires `{"comment":"Customer requested cancellation"}` on its own endpoint. No hard-delete endpoint is provided. No Postman collection exists in this repository; these examples document the API contract. Run focused verification with `php artisan test --compact tests/Feature/TenantOrderManagementTest.php`. Tests use isolated SQLite databases; they cover transactional rollback and sequential overselling/retry scenarios, but do not prove concurrent InnoDB locking. Verify simultaneous confirmations/receipts against an isolated MySQL/InnoDB staging database before deployment.
+
+### Tenant coupons
+
+Coupons are managed under the tenant Coupons sidebar. The list supports code/description search, status, discount type, and validity interval overlap filters (`from` / `to`, YYYY-MM-DD). Create, edit, detail, activate/deactivate and soft-delete actions use the existing Blade/Bootstrap layout and tenant authorization. Codes are normalized to uppercase and remain reserved after deletion. Disabled, scheduled and expired are distinct statuses; usage exhaustion is reported when applying a coupon.
+
+Run `php artisan tenant:migrate-all --no-interaction` to install the two additive coupon migrations. They add `coupons`, three restriction pivots, `coupon_redemptions`, nullable coupon identity/snapshot fields and a zero-default coupon discount on existing orders, plus a zero-default coupon discount on order items. Existing order amounts remain unchanged. Legacy non-InnoDB categories are converted to InnoDB for foreign keys; that engine conversion remains after rollback. Provisioning installs the same migrations. Existing Admin roles and newly seeded Admin roles receive `coupons.view/create/update/delete`; other roles need explicit grants.
+
+All APIs use the existing tenant **staff bearer token** and permission checks. There is no customer-login/storefront API in this project, so coupon order operations use the existing authorized order API.
+
+| Method | Path | Behavior |
+| --- | --- | --- |
+| GET / POST | `/api/tenant/coupons` | Paginated list / create |
+| GET / PUT / PATCH / DELETE | `/api/tenant/coupons/{coupon}` | Show / replace rules / soft delete |
+| PATCH | `/api/tenant/coupons/{coupon}/status` | Set `is_active` explicitly |
+| POST | `/api/tenant/orders/preview` | Validate coupon and return eligibility, priced lines, totals and fingerprint |
+| PATCH | `/api/tenant/orders/{order}/coupon` | Apply `coupon_code` through the existing draft update flow |
+| DELETE | `/api/tenant/orders/{order}/coupon` | Remove coupon and reprice draft |
+
+Coupon create/update example (updates replace restriction selections; omitted arrays clear those restrictions):
+
+```json
+{
+  "code": "SAVE10",
+  "description": "Ten percent off eligible merchandise",
+  "is_active": true,
+  "discount_type": "percentage",
+  "discount_value": "10.00",
+  "maximum_discount": "500.00",
+  "minimum_subtotal": "100.00",
+  "starts_at": "2026-10-01 00:00:00",
+  "ends_at": "2026-10-31 23:59:59",
+  "usage_limit": 100,
+  "per_customer_limit": 1,
+  "products": [],
+  "categories": [],
+  "customers": []
+}
+```
+
+Send `coupon_code` alongside existing order creation/preview fields, including `customer_id` for customer-limited coupons. Preview returns `data.coupon_eligible: true` when an applied code is valid (false when no coupon is supplied), with `data.totals.coupon_discount`, tax and grand total. Invalid codes return the normal 422 envelope with `errors.coupon_code`. Preview does not reserve usage. Create and draft update also accept `coupon_code`; send null to remove, or omit it during update to retain the code. The dedicated removal endpoint ignores submitted pricing. Final submission recalculates everything on the server; client coupon amounts and snapshots are ignored.
+
+Calculation order: effective catalog/special price or an authorized price override → manual line discount → coupon allocation → existing per-line percentage tax → shipping and optional shipping tax. The minimum subtotal is the eligible merchandise amount **after manual discounts, before coupon and tax**, excluding shipping. Product/category selections form a union; with neither selection, all merchandise qualifies. Customer selections are an additional restriction. Percentage discounts round half-up to paise, then the optional cap and eligible-subtotal ceiling apply. Fixed discounts use the same cap and ceiling. Allocation is proportional to remaining eligible net line values, rounded down per line with the final line receiving the remainder; taxes then round half-up per line as before. Line `discount_amount` and order `discount_total` include the coupon; `coupon_discount` identifies the coupon component and must not be subtracted again.
+
+One coupon per order. Start/end instants are inclusive and use the application timezone unless an offset is supplied. Guest orders can use unrestricted coupons, but must select a registered customer for per-customer limits or customer restrictions. Drafts consume no usage. A draft consumes one redemption when submitted as pending or confirmed; processing, shipped and delivered retain it. Pending orders already have committed pricing and usage, so subsequent confirmation retains that snapshot even if the coupon changes. Permitted unpaid cancellations release usage exactly once; captured funds continue to block cancellation under the existing payment policy.
+
+Submission, usage checks and redemption creation share the existing tenant transaction. Coupon row locks serialize competing redemptions and coupon edits; locking reads avoid stale usage/restriction snapshots. The unique redemption `order_id` and existing durable idempotency key prevent retry duplication. Coupon deletion is soft; order code, amount, rules, eligible subtotal and per-line allocations remain historical snapshots. Drafts created before this migration may need reopening and saving to refresh their pricing fingerprint.
+
+Focused tests: `php artisan test --compact tests/Feature/TenantCouponTest.php tests/Feature/TenantOrderManagementTest.php`. Coverage includes authorization, tenant isolation, restrictions, dates, limits, competing draft submission, retries, cancellation, tax rounding and historical totals. These SQLite tests exercise repeated/competing submissions sequentially; actual simultaneous MySQL/InnoDB execution is not covered.

@@ -78,12 +78,18 @@
             </section>
             <section class="dashboard-card mb-4">
                 <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="coupon_code" class="form-label">Coupon code</label>
+                        <input class="form-control" id="coupon_code" name="coupon_code" maxlength="50"
+                            value="{{ $input['coupon_code'] ?? '' }}">
+                        <div class="form-text">Clear the code to remove it. Applied before tax to eligible items.</div>
+                    </div>
                     <div class="col-md-4"><label for="shipping_amount" class="form-label">Shipping charge
                             (INR, optional)</label><input type="number" min="0" step="0.01" class="form-control"
                             id="shipping_amount" name="shipping_amount" value="{{ $input['shipping_amount'] ?? '0.00' }}">
                     </div>
-                    <div class="col-md-4"><label for="shipping_tax_id" class="form-label">Shipping GST (optional)</label><select
-                            class="form-select" id="shipping_tax_id" name="shipping_tax_id">
+                    <div class="col-md-4"><label for="shipping_tax_id" class="form-label">Shipping GST
+                            (optional)</label><select class="form-select" id="shipping_tax_id" name="shipping_tax_id">
                             <option value="">No shipping GST</option>
                             @foreach ($taxes as $tax)
                                 <option value="{{ $tax->id }}" @selected((string) ($input['shipping_tax_id'] ?? '') === (string) $tax->id)>{{ $tax->name }} —

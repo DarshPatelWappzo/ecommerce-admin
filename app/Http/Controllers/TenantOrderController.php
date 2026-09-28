@@ -195,6 +195,21 @@ class TenantOrderController extends Controller
     }
 
     /**
+     * Remove a coupon from a draft and return authoritative recalculated totals.
+     *
+     * @param  TenantOrderRequest  $request  Authorized tenant request.
+     * @param  int  $order  Tenant order identifier.
+     * @return JsonResponse Repriced draft.
+     */
+    public function removeCoupon(TenantOrderRequest $request, int $order): JsonResponse
+    {
+        $record = $this->service->save(['coupon_code' => null], $request->actor(), 'api', $order);
+        $data = ['data' => new TenantOrderResource($record), 'message' => 'Coupon removed.'];
+
+        return response()->json($data);
+    }
+
+    /**
      * Begin processing while retaining the reservation.
      *
      * @param  TenantOrderActionRequest  $request  The authorized tenant request.

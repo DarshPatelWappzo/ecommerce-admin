@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['order_number', 'customer_id', 'customer_name', 'customer_email', 'customer_phone', 'company_name', 'gstin', 'order_date', 'source', 'status', 'payment_status', 'currency', 'subtotal', 'discount_total', 'shipping_amount', 'shipping_tax_amount', 'tax_total', 'rounding_adjustment', 'grand_total', 'shipping_tax_id', 'shipping_tax_rate', 'shipping_tax_name', 'shipping_tax_code', 'customer_note', 'internal_note', 'created_by', 'cancelled_at', 'cancellation_reason', 'draft_input', 'pricing_fingerprint'])]
+#[Fillable(['order_number', 'customer_id', 'customer_name', 'customer_email', 'customer_phone', 'company_name', 'gstin', 'order_date', 'source', 'status', 'payment_status', 'currency', 'coupon_id', 'coupon_code', 'coupon_discount', 'coupon_snapshot', 'subtotal', 'discount_total', 'shipping_amount', 'shipping_tax_amount', 'tax_total', 'rounding_adjustment', 'grand_total', 'shipping_tax_id', 'shipping_tax_rate', 'shipping_tax_name', 'shipping_tax_code', 'customer_note', 'internal_note', 'created_by', 'cancelled_at', 'cancellation_reason', 'draft_input', 'pricing_fingerprint'])]
 class Order extends TenantModel
 {
     use HasFactory;
@@ -54,6 +54,6 @@ class Order extends TenantModel
 
     protected function casts(): array
     {
-        return ['order_date' => 'datetime', 'cancelled_at' => 'datetime', 'draft_input' => 'array', 'shipping_tax_rate' => 'decimal:4', 'subtotal' => 'decimal:2', 'discount_total' => 'decimal:2', 'shipping_amount' => 'decimal:2', 'shipping_tax_amount' => 'decimal:2', 'tax_total' => 'decimal:2', 'rounding_adjustment' => 'decimal:2', 'grand_total' => 'decimal:2'];
+        return ['coupon_discount' => 'decimal:2', 'coupon_snapshot' => 'array', 'order_date' => 'datetime', 'cancelled_at' => 'datetime', 'draft_input' => 'array', 'shipping_tax_rate' => 'decimal:4', 'subtotal' => 'decimal:2', 'discount_total' => 'decimal:2', 'shipping_amount' => 'decimal:2', 'shipping_tax_amount' => 'decimal:2', 'tax_total' => 'decimal:2', 'rounding_adjustment' => 'decimal:2', 'grand_total' => 'decimal:2'];
     }
 }

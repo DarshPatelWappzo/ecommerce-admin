@@ -16,12 +16,7 @@
         </div>
         <nav class="sidebar-nav" aria-label="Tenant navigation">
             <span class="sidebar-label">Menu</span>
-            @if (auth('tenant')->user()?->status === 'active' &&
-                    app(\App\Repositories\TenantRoleRepository::class)->userHasPermission(auth('tenant')->user(), 'orders.view'))
-                <a class="sidebar-link {{ request()->routeIs('tenant.orders.*') ? 'active' : '' }}"
-                    href="{{ route('tenant.orders.index') }}" data-tooltip="Orders"><i class="fa-solid fa-receipt"
-                        aria-hidden="true"></i><span>Orders</span></a>
-            @endif
+
             <a class="sidebar-link {{ request()->routeIs('tenant.dashboard') ? 'active' : '' }}"
                 href="{{ route('tenant.dashboard') }}" data-tooltip="Dashboard">
                 <i class="fa-solid fa-house" aria-hidden="true"></i>
@@ -63,6 +58,18 @@
                     <i class="fa-solid fa-users" aria-hidden="true"></i>
                     <span>Customers</span>
                 </a>
+            @endif
+            @if (auth('tenant')->user()?->status === 'active' &&
+                    app(\App\Repositories\TenantRoleRepository::class)->userHasPermission(auth('tenant')->user(), 'coupons.view'))
+                <a class="sidebar-link {{ request()->routeIs('tenant.coupons.*') ? 'active' : '' }}"
+                    href="{{ route('tenant.coupons.index') }}" data-tooltip="Coupons"><i class="fa-solid fa-ticket"
+                        aria-hidden="true"></i><span>Coupons</span></a>
+            @endif
+            @if (auth('tenant')->user()?->status === 'active' &&
+                    app(\App\Repositories\TenantRoleRepository::class)->userHasPermission(auth('tenant')->user(), 'orders.view'))
+                <a class="sidebar-link {{ request()->routeIs('tenant.orders.*') ? 'active' : '' }}"
+                    href="{{ route('tenant.orders.index') }}" data-tooltip="Orders"><i class="fa-solid fa-receipt"
+                        aria-hidden="true"></i><span>Orders</span></a>
             @endif
         </nav>
     </div>

@@ -78,6 +78,7 @@ class TenantOrderSaveRequest extends TenantOrderRequest
         $required = $partial ? 'sometimes' : 'required';
         $money = ['numeric', 'min:0', 'max:9999999999999.99', 'decimal:0,2'];
         $rules = [
+            'coupon_code' => ['nullable', 'string', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/'],
             'idempotency_key' => [$this->route()->getActionMethod() === 'store' ? 'required' : 'sometimes', 'string', 'max:128', 'regex:/^[A-Za-z0-9_-]+$/'],
             'customer_id' => ['nullable', 'integer', Rule::exists('tenant.customers', 'id')->whereNull('deleted_at')->where('status', 'active')],
             'customer_name' => ['nullable', 'string', 'max:201'],

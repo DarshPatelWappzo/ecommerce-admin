@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Tenant\TenantProductController;
 use App\Http\Controllers\Api\Tenant\TenantUserController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\TenantCatalogController;
+use App\Http\Controllers\TenantCouponController;
 use App\Http\Middleware\AuthenticateTenantToken;
 use App\Http\Middleware\ResolveTenant;
 use Illuminate\Support\Facades\Route;
@@ -29,6 +30,8 @@ Route::controller(TenantAuthController::class)->group(function (): void {
 });
 
 Route::middleware(AuthenticateTenantToken::class)->group(function (): void {
+    Route::patch('tenant/coupons/{coupon}/status', [TenantCouponController::class, 'status'])->name('api.tenant.coupons.status');
+    Route::apiResource('tenant/coupons', TenantCouponController::class)->names('api.tenant.coupons');
     Route::prefix('tenant/orders')->name('api.tenant.orders.')->where(['order' => '[0-9]+'])->controller(TenantOrderController::class)->group(function (): void {
         Route::get('/', 'index')->name('index');
         Route::post('/', 'store')->name('store');
@@ -36,6 +39,8 @@ Route::middleware(AuthenticateTenantToken::class)->group(function (): void {
         Route::post('/preview', 'preview')->name('preview');
         Route::get('/{order}', 'show')->name('show');
         Route::patch('/{order}', 'update')->name('update');
+        Route::patch('/{order}/coupon', 'update')->name('coupon.apply');
+        Route::delete('/{order}/coupon', 'removeCoupon')->name('coupon.remove');
         Route::post('/{order}/confirm', 'confirm')->name('confirm');
         Route::post('/{order}/process', 'process')->name('process');
         Route::post('/{order}/cancel', 'cancel')->name('cancel');

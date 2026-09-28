@@ -39,6 +39,10 @@
             </div><a href="{{ route('tenant.orders.index') }}" class="btn btn-light">Back to orders</a>
         </div>
         @include('tenant.customers._notifications')
+        @if ($order->coupon_code)
+            <div class="alert alert-info">Coupon {{ $order->coupon_code }}: INR {{ $order->coupon_discount }} (included in
+                total discount).</div>
+        @endif
         <div class="d-flex flex-wrap gap-2 mb-4">
             @if ($order->status === 'draft' && $permissions['update'])
                 <a class="btn btn-outline-primary" href="{{ route('tenant.orders.edit', $order) }}">Edit draft</a>

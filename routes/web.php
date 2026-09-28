@@ -8,6 +8,7 @@ use App\Http\Controllers\SuperAdmin\UserController;
 use App\Http\Controllers\TenantAuthController;
 use App\Http\Controllers\TenantCatalogController;
 use App\Http\Controllers\TenantCategoryController;
+use App\Http\Controllers\TenantCouponController;
 use App\Http\Controllers\TenantCustomerAddressController;
 use App\Http\Controllers\TenantCustomerController;
 use App\Http\Controllers\TenantOrderController;
@@ -40,6 +41,8 @@ Route::prefix('tenant')->name('tenant.')->group(function (): void {
             ->name('dashboard');
 
         Route::middleware(RequireTenantPasswordChange::class)->group(function (): void {
+            Route::patch('coupons/{coupon}/status', [TenantCouponController::class, 'status'])->name('coupons.status');
+            Route::resource('coupons', TenantCouponController::class);
             Route::prefix('orders')->name('orders.')->where(['order' => '[0-9]+'])->controller(TenantOrderController::class)->group(function (): void {
                 Route::get('/', 'index')->name('index');
                 Route::post('/', 'store')->name('store');

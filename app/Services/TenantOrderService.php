@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 class TenantOrderService
 {
-    public function __construct(private readonly TenantOrderRepository $orders, private readonly TenantOrderCalculationService $calculator, private readonly AuditLogService $audit) {}
+    public function __construct(private readonly TenantOrderRepository $orders, private readonly TenantOrderCalculationService $calculator, private readonly AuditLogService $audit, private readonly TenantCouponService $coupons) {}
 
     /**
      * Create or update a draft order and persist the validated pricing snapshot.
@@ -51,7 +51,7 @@ class TenantOrderService
                 'internal_note' => $input['internal_note'] ?? null,
             ];
             if (! $id) {
-                $data += ['order_number' => 'ORD-'.Str::ulid(), 'order_date' => now(), 'source' => $source, 'status' => 'draft', 'payment_status' => 'unpaid', 'created_by' => $actor->id];
+                $data += ['order_number' => 'ORD-' . Str::ulid(), 'order_date' => now(), 'source' => $source, 'status' => 'draft', 'payment_status' => 'unpaid', 'created_by' => $actor->id];
             }
             $this->orders->save($order, $data);
             $this->orders->replaceDetails($order, $calculation['items'], $addresses);
@@ -81,9 +81,9 @@ class TenantOrderService
 
             return [
                 'customer_id' => $customer->id,
-                'customer_name' => trim($customer->first_name.' '.$customer->last_name),
+                'customer_name' => trim($customer->first_name . ' ' . $customer->last_name),
                 'customer_email' => $customer->email,
-                'customer_phone' => $customer->phone ? trim($customer->phone_country_code.' '.$customer->phone) : null,
+                'customer_phone' => $customer->phone ? trim($customer->phone_country_code . ' ' . $customer->phone) : null,
                 'company_name' => $customer->company_name,
                 'gstin' => $customer->gstin,
             ];
@@ -116,7 +116,7 @@ class TenantOrderService
             throw ValidationException::withMessages(['shipping' => 'Supply both addresses or select same as billing.']);
         }
 
-        return array_map(fn (string $type, array $address): array => ['type' => $type, ...$address, 'state_name' => config('customer_locations.IN.states.'.$address['state_code'])], ['billing', 'shipping'], [$billing, $shipping]);
+        return array_map(fn(string $type, array $address): array => ['type' => $type, ...$address, 'state_name' => config('customer_locations.IN.states.' . $address['state_code'])], ['billing', 'shipping'], [$billing, $shipping]);
     }
 
     /**
@@ -134,7 +134,7 @@ class TenantOrderService
             $order = $this->orders->find($id, true);
             $from = $order->status;
             if (! in_array($target, Order::TRANSITIONS[$from], true)) {
-                throw ValidationException::withMessages(['status' => 'This order cannot move from '.$from.' to '.$target.'.']);
+                throw ValidationException::withMessages(['status' => 'This order cannot move from ' . $from . ' to ' . $target . '.']);
             }
             if ($target === 'cancelled' && $this->captured($order)->isGreaterThan('0')) {
                 throw ValidationException::withMessages(['order' => 'This order has received funds. Cancellation requires a refund workflow, which is not available in this release.']);
@@ -145,6 +145,7 @@ class TenantOrderService
                     throw ValidationException::withMessages(['items' => 'Catalog prices or tax details changed. Reopen and save the draft to review updated totals before confirming.']);
                 }
                 $this->orders->save($order, $this->profile($order->draft_input));
+                $this->coupons->redeem($order);
             }
             $items = $order->items()->get();
             if ($target === 'confirmed' && $order->shipping_tax_id !== null && ! $this->orders->tax((int) $order->shipping_tax_id)) {
@@ -162,7 +163,7 @@ class TenantOrderService
                         throw ValidationException::withMessages(['items' => 'Every ordered product, variant and tax must be available at confirmation.']);
                     }
                     if ($stockAction === 'reserve' && $variant->quantity - $variant->reserved_quantity < $item->quantity) {
-                        throw ValidationException::withMessages(['items' => 'Insufficient available stock for '.$item->sku.'.']);
+                        throw ValidationException::withMessages(['items' => 'Insufficient available stock for ' . $item->sku . '.']);
                     }
                     if ($stockAction !== 'reserve' && ($variant->reserved_quantity < $item->quantity || ($stockAction === 'ship' && $variant->quantity < $item->quantity))) {
                         throw ValidationException::withMessages(['items' => 'Inventory no longer matches the reservation. Resolve it before continuing.']);
@@ -182,6 +183,7 @@ class TenantOrderService
                 $fields['draft_input'] = null;
             }
             if ($target === 'cancelled') {
+                $this->coupons->release($order);
                 $fields += ['cancelled_at' => now(), 'cancellation_reason' => $data['comment'] ?? null];
             }
             $this->orders->save($order, $fields);

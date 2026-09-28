@@ -14,12 +14,10 @@ jQuery(() => {
             },
             body: JSON.stringify(payload),
         });
-        const data = await response
-            .json()
-            .catch(() => ({
-                message:
-                    "The server could not complete this request. Please retry.",
-            }));
+        const data = await response.json().catch(() => ({
+            message:
+                "The server could not complete this request. Please retry.",
+        }));
         if (!response.ok) {
             throw data;
         }
@@ -209,7 +207,9 @@ jQuery(() => {
             input.disabled = hidden;
         });
         if (hidden) {
-            container.querySelectorAll(".field-error").forEach((error) => error.remove());
+            container
+                .querySelectorAll(".field-error")
+                .forEach((error) => error.remove());
         }
     }
     form.elements.same_as_billing.addEventListener(
@@ -310,6 +310,8 @@ jQuery(() => {
     }
     function previewPayload() {
         return {
+            coupon_code: form.elements.coupon_code.value || null,
+            customer_id: form.elements.customer_id.value || null,
             items: itemPayload(),
             shipping_amount: form.elements.shipping_amount.value || "0",
             shipping_tax_id: form.elements.shipping_tax_id.value || null,
@@ -411,12 +413,14 @@ jQuery(() => {
     form.addEventListener("input", (event) => {
         if (
             event.target.closest("[data-order-items]") ||
-            event.target.name === "shipping_amount"
+            event.target.name === "shipping_amount" ||
+            event.target.name === "coupon_code"
         ) {
             queuePreview();
         }
     });
     $(form.elements.shipping_tax_id).on("change", queuePreview);
+    $(form.elements.customer_id).on("change", queuePreview);
     (config.items.length ? config.items : [{}]).forEach(addItem);
     queuePreview();
     form.addEventListener("submit", async (event) => {

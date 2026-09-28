@@ -4,5 +4,6 @@ Before planning or editing, find the row whose globs match the file's path and r
 
 | Applies to | Rule file |
 | --- | --- |
+| bootstrap/app.php | .ai/rules/bootstrap.md |
 | app/Http/Controllers/** | .ai/rules/controllers.md |
-| app/Services/TenantOrder*.php | .ai/rules/services.md |
+| app/Services/TenantOrder*.php, app/Services/TenantCoupon*.php | .ai/rules/services.md |

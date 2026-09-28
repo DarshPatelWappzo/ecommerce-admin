@@ -28,7 +28,7 @@ class TenantOrderRequest extends FormRequest
         }
         $action = match ($this->route()->getActionMethod()) {
             'store', 'create' => 'create',
-            'update', 'edit' => 'update',
+            'update', 'edit', 'removeCoupon' => 'update',
             'confirm', 'process', 'cancel', 'payments', 'ship', 'deliver' => $this->route()->getActionMethod(),
             'preview', 'options' => $this->allowed('create') ? 'create' : 'update',
             default => 'view',

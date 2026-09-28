@@ -10,7 +10,7 @@ use Illuminate\Validation\ValidationException;
 
 class TenantOrderCalculationService
 {
-    public function __construct(private readonly TenantOrderRepository $orders) {}
+    public function __construct(private readonly TenantOrderRepository $orders, private readonly TenantCouponService $coupons) {}
 
     /**
      * Convert a value into a two-decimal BigDecimal for order accounting.
@@ -56,11 +56,11 @@ class TenantOrderCalculationService
             $variant = $variants->get($line['product_variant_id']);
             $product = $variant?->product;
             if (! $variant || ! $variant->status || ! $product?->status || $product->id !== (int) $line['product_id']) {
-                throw ValidationException::withMessages(['items.'.$index.'.product_variant_id' => 'Select an active variant belonging to the selected product.']);
+                throw ValidationException::withMessages(['items.' . $index . '.product_variant_id' => 'Select an active variant belonging to the selected product.']);
             }
             $tax = $product->tax;
             if (! $tax?->is_available) {
-                throw ValidationException::withMessages(['items.'.$index.'.product_id' => 'Configure an active product tax before adding this item to an order. An explicit zero-rate tax is allowed.']);
+                throw ValidationException::withMessages(['items.' . $index . '.product_id' => 'Configure an active product tax before adding this item to an order. An explicit zero-rate tax is allowed.']);
             }
             $price = $this->catalogPrice($variant);
             $overridden = isset($line['unit_price']);
@@ -68,7 +68,7 @@ class TenantOrderCalculationService
             $base = $unit->multipliedBy($line['quantity']);
             $discount = self::money($line['discount_amount'] ?? '0');
             if ($discount->isGreaterThan($base)) {
-                throw ValidationException::withMessages(['items.'.$index.'.discount_amount' => 'Item discount cannot exceed its subtotal.']);
+                throw ValidationException::withMessages(['items.' . $index . '.discount_amount' => 'Item discount cannot exceed its subtotal.']);
             }
             $taxable = $base->minus($discount);
             $amount = $taxable->multipliedBy($tax->rate)->dividedBy('100', 2, RoundingMode::HalfUp);
@@ -80,7 +80,7 @@ class TenantOrderCalculationService
                 'product_id' => $product->id,
                 'product_variant_id' => $variant->id,
                 'product_name' => $product->name,
-                'variant_name' => $variant->attributeValues->map(fn ($value) => $value->option?->label)->filter()->implode(' / ') ?: null,
+                'variant_name' => $variant->attributeValues->map(fn($value) => $value->option?->label)->filter()->implode(' / ') ?: null,
                 'sku' => $variant->sku,
                 'hsn_code' => $product->hsn_code,
                 'quantity' => (int) $line['quantity'],
@@ -102,6 +102,15 @@ class TenantOrderCalculationService
             $discountTotal = $discountTotal->plus($discount);
             $taxTotal = $taxTotal->plus($amount);
         }
+        $categories = $variants->mapWithKeys(fn($variant): array => [$variant->product_id => $variant->product->categories->modelKeys()])->all();
+        $coupon = $this->coupons->calculate($input, $items, $categories, $lock);
+        $items = $coupon['items'];
+        $discountTotal = self::money('0');
+        $taxTotal = self::money('0');
+        foreach ($items as $item) {
+            $discountTotal = $discountTotal->plus($item['discount_amount']);
+            $taxTotal = $taxTotal->plus($item['tax_amount']);
+        }
         $shipping = self::money($input['shipping_amount'] ?? '0');
         $shippingTax = isset($input['shipping_tax_id']) ? $this->orders->tax((int) $input['shipping_tax_id']) : null;
         if (isset($input['shipping_tax_id']) && ! $shippingTax) {
@@ -113,6 +122,7 @@ class TenantOrderCalculationService
         $this->checkLimit($subtotal);
         $this->checkLimit($grand);
         $totals = [
+            ...$coupon['coupon'],
             'subtotal' => (string) $subtotal,
             'discount_total' => (string) $discountTotal,
             'shipping_amount' => (string) $shipping,
@@ -126,7 +136,7 @@ class TenantOrderCalculationService
             'grand_total' => (string) $grand,
         ];
 
-        return ['items' => $items, 'totals' => $totals, 'fingerprint' => hash('sha256', json_encode([$items, $totals], JSON_THROW_ON_ERROR))];
+        return ['coupon_eligible' => $totals['coupon_id'] !== null, 'items' => $items, 'totals' => $totals, 'fingerprint' => hash('sha256', json_encode([$items, $totals], JSON_THROW_ON_ERROR))];
     }
 
     /**

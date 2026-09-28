@@ -26,7 +26,7 @@ class TenantOrderRepository
      */
     public function find(int $id, bool $lock = false): Order
     {
-        return Order::query()->when($lock, fn (Builder $query) => $query->lockForUpdate())->findOrFail($id);
+        return Order::query()->when($lock, fn(Builder $query) => $query->lockForUpdate())->findOrFail($id);
     }
 
     /**
@@ -50,7 +50,7 @@ class TenantOrderRepository
     {
         $query = Order::query();
         if (! empty($filters['search'])) {
-            $query->where(fn (Builder $query) => $query->whereLike('order_number', '%'.$filters['search'].'%')->orWhereLike('customer_name', '%'.$filters['search'].'%')->orWhereLike('customer_email', '%'.$filters['search'].'%'));
+            $query->where(fn(Builder $query) => $query->whereLike('order_number', '%' . $filters['search'] . '%')->orWhereLike('customer_name', '%' . $filters['search'] . '%')->orWhereLike('customer_email', '%' . $filters['search'] . '%'));
         }
         foreach (['status', 'payment_status'] as $field) {
             if (! empty($filters[$field])) {
@@ -58,10 +58,10 @@ class TenantOrderRepository
             }
         }
         if (! empty($filters['payment_method'])) {
-            $query->whereHas('payments', fn (Builder $query) => $query->where('method', $filters['payment_method']));
+            $query->whereHas('payments', fn(Builder $query) => $query->where('method', $filters['payment_method']));
         }
         if (! empty($filters['from'])) {
-            $query->where('order_date', '>=', $filters['from'].' 00:00:00');
+            $query->where('order_date', '>=', $filters['from'] . ' 00:00:00');
         }
         if (! empty($filters['to'])) {
             $query->where('order_date', '<', Carbon::parse($filters['to'])->addDay()->startOfDay());
@@ -84,9 +84,9 @@ class TenantOrderRepository
             Product::withTrashed()->whereIn('id', ProductVariant::withTrashed()->whereIn('id', $ids)->select('product_id'))->orderBy('id')->lockForUpdate()->get();
         }
 
-        return ProductVariant::query()->when($trashed, fn (Builder $query) => $query->withTrashed())
-            ->with(['product.tax', 'attributeValues.option'])->whereIn('id', $ids)->orderBy('id')
-            ->when($lock, fn (Builder $query) => $query->lockForUpdate())->get()->keyBy('id');
+        return ProductVariant::query()->when($trashed, fn(Builder $query) => $query->withTrashed())
+            ->with(['product.tax', 'product.categories', 'attributeValues.option'])->whereIn('id', $ids)->orderBy('id')
+            ->when($lock, fn(Builder $query) => $query->lockForUpdate())->get()->keyBy('id');
     }
 
     /**
@@ -131,18 +131,18 @@ class TenantOrderRepository
     {
         $search = $filters['search'] ?? '';
         if (($filters['kind'] ?? '') === 'taxes') {
-            return Tax::where('is_active', true)->where(fn (Builder $query) => $query->whereLike('name', '%'.$search.'%')->orWhereLike('code', '%'.$search.'%'))
+            return Tax::where('is_active', true)->where(fn(Builder $query) => $query->whereLike('name', '%' . $search . '%')->orWhereLike('code', '%' . $search . '%'))
                 ->orderBy('name')->paginate(20, ['id', 'name', 'code', 'rate']);
         }
         if (($filters['kind'] ?? '') === 'customers') {
             return Customer::where('status', 'active')->with('addresses')
-                ->where(fn (Builder $query) => $query->whereLike('first_name', '%'.$search.'%')->orWhereLike('last_name', '%'.$search.'%')->orWhereLike('email', '%'.$search.'%')->orWhereLike('customer_code', '%'.$search.'%'))
+                ->where(fn(Builder $query) => $query->whereLike('first_name', '%' . $search . '%')->orWhereLike('last_name', '%' . $search . '%')->orWhereLike('email', '%' . $search . '%')->orWhereLike('customer_code', '%' . $search . '%'))
                 ->orderBy('first_name')->paginate(20);
         }
 
         return ProductVariant::with(['product.tax', 'attributeValues.option'])->where('status', true)
-            ->whereHas('product', fn (Builder $query) => $query->where('status', true))
-            ->where(fn (Builder $query) => $query->whereLike('sku', '%'.$search.'%')->orWhereHas('product', fn (Builder $query) => $query->whereLike('name', '%'.$search.'%')))
+            ->whereHas('product', fn(Builder $query) => $query->where('status', true))
+            ->where(fn(Builder $query) => $query->whereLike('sku', '%' . $search . '%')->orWhereHas('product', fn(Builder $query) => $query->whereLike('name', '%' . $search . '%')))
             ->orderBy('id')->paginate(20);
     }
 
