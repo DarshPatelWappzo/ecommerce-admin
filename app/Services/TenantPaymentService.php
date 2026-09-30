@@ -18,6 +18,7 @@ class TenantPaymentService
         private readonly OrderPaymentGateway $gateway,
         private readonly TenantOrderRepository $orders,
         private readonly TenantOrderService $orderService,
+        private readonly AuditLogService $audit,
     ) {}
 
     /** @return array<string, string> Enabled method labels, never credentials. */
@@ -134,12 +135,45 @@ class TenantPaymentService
         return $this->orders->details($id);
     }
 
+    /** Recover provider facts without trusting a browser payment result or creating a new charge. */
+    public function recover(int $id, int $tenantDatabaseId): Order
+    {
+        $order = $this->orders->find($id);
+        $checkout = $order->paymentCheckout;
+        if (! $checkout) {
+            return $this->orders->details($id);
+        }
+        $this->matchingAccount($checkout);
+        $providerOrder = $checkout->gateway_order_id
+            ? $this->gateway->fetchOrder($checkout->gateway_order_id)
+            : $this->gateway->findOrder($checkout->reference);
+        if (! $providerOrder) {
+            throw new OrderPaymentGatewayException;
+        }
+        $this->assertProviderOrder($checkout, $providerOrder, $tenantDatabaseId);
+        DB::connection('tenant')->transaction(function () use ($checkout, $providerOrder, $tenantDatabaseId): void {
+            $this->orders->find($checkout->order_id, true);
+            $checkout->refresh();
+            $this->assertProviderOrder($checkout, $providerOrder, $tenantDatabaseId);
+            $checkout->update(['gateway_order_id' => $providerOrder['id']]);
+        }, 3);
+        foreach ($this->gateway->fetchOrderPayments($providerOrder['id']) as $payment) {
+            if (! is_array($payment)) {
+                throw new OrderPaymentGatewayException;
+            }
+            $this->reconcile($checkout, $providerOrder, $payment, $tenantDatabaseId);
+        }
+
+        return $this->orders->details($id);
+    }
+
     /** @param array<string, mixed> $providerOrder */
     public function assertProviderOrder(OrderPaymentCheckout $checkout, array $providerOrder, int $tenantDatabaseId): void
     {
         $this->matchingAccount($checkout);
         if (
             ! is_string($providerOrder['id'] ?? null)
+            || ! preg_match('/^order_[A-Za-z0-9]+$/', $providerOrder['id'])
             || ($checkout->gateway_order_id && $providerOrder['id'] !== $checkout->gateway_order_id)
             || ($providerOrder['receipt'] ?? null) !== $checkout->reference
             || ($providerOrder['amount'] ?? null) !== self::minorUnits($checkout->amount)
@@ -161,7 +195,8 @@ class TenantPaymentService
             || ($entity['currency'] ?? null) !== $checkout->currency
             || ($entity['amount_refunded'] ?? 0) !== 0
             || ! is_string($entity['id'] ?? null)
-            || ! in_array($entity['status'] ?? null, ['captured', 'authorized', 'failed'], true)
+            || ! preg_match('/^pay_[A-Za-z0-9]+$/', $entity['id'])
+            || ! in_array($entity['status'] ?? null, ['created', 'captured', 'authorized', 'failed'], true)
             || ($entity['status'] === 'captured' && ($entity['captured'] ?? false) !== true)
         ) {
             throw ValidationException::withMessages(['payment' => 'The provider payment amount, currency or status does not match.']);
@@ -172,8 +207,7 @@ class TenantPaymentService
             $checkout->refresh();
             $this->assertProviderOrder($checkout, $providerOrder, $tenantDatabaseId);
             if (
-                in_array($order->status, ['draft', 'cancelled'], true)
-                || $order->currency !== $checkout->currency
+                $order->currency !== $checkout->currency
                 || ! TenantOrderCalculationService::money($order->grand_total)->isEqualTo($checkout->amount)
             ) {
                 throw ValidationException::withMessages(['order' => 'This order cannot accept this payment.']);
@@ -194,10 +228,9 @@ class TenantPaymentService
             if ($payment && $payment->order_id !== $order->id) {
                 throw ValidationException::withMessages(['payment' => 'The provider payment is already assigned to another order.']);
             }
-            if (! $payment || $payment->status !== 'captured') {
-                if ($entity['status'] === 'captured' && $this->orderService->captured($order)->plus($checkout->amount)->isGreaterThan($order->grand_total)) {
-                    throw ValidationException::withMessages(['payment' => 'This order already has a successful payment.']);
-                }
+            if ((! $payment || $payment->status !== 'captured')
+                && ! ($payment && in_array($payment->status, ['authorized', 'failed'], true) && $entity['status'] === 'created')) {
+                $previousStatus = $payment?->status;
                 $payment ??= $order->payments()->whereNull('gateway_payment_id')->where('status', 'pending')->first() ?? new OrderPayment(['order_id' => $order->id]);
                 $payment->fill([
                     'method' => $checkout->gateway,
@@ -213,25 +246,32 @@ class TenantPaymentService
                     'recorded_by' => null,
                 ]);
                 if ($entity['status'] === 'captured') {
-                    $payment->paid_at = now();
+                    $payment->paid_at ??= now();
                     $payment->failure_code = null;
                     $payment->failure_message = null;
-                    $checkout->update(['status' => 'paid']);
-                    $order->update(['payment_status' => 'paid']);
+                    $needsReview = in_array($order->status, ['draft', 'cancelled'], true)
+                        || $checkout->status === 'review'
+                        || $this->orderService->captured($order)->plus($checkout->amount)->isGreaterThan($order->grand_total);
+                    $checkout->update(['status' => $needsReview ? 'review' : 'paid']);
                 } elseif ($entity['status'] === 'failed') {
-                    $payment->failed_at = now();
+                    $payment->failed_at ??= now();
                     $payment->failure_code = preg_replace('/[^A-Z0-9_]/', '', substr((string) ($entity['error_code'] ?? 'PAYMENT_FAILED'), 0, 100));
                     $payment->failure_message = 'The provider reported that this payment failed.';
-                    if ($order->payment_status !== 'paid') {
-                        $order->update(['payment_status' => 'failed']);
-                    }
-                } else {
-                    $payment->authorized_at = now();
-                    if ($order->payment_status !== 'paid') {
-                        $order->update(['payment_status' => 'pending']);
-                    }
+                } elseif ($entity['status'] === 'authorized') {
+                    $payment->authorized_at ??= now();
                 }
                 $payment->save();
+                $received = $this->orderService->captured($order);
+                $status = $received->isGreaterThanOrEqualTo($order->grand_total) ? 'paid'
+                    : ($received->isGreaterThan(0) ? 'partially_paid'
+                        : ($order->payments()->whereNotNull('gateway_payment_id')->whereIn('status', ['created', 'authorized'])->exists() ? 'pending' : 'failed'));
+                $order->update(['payment_status' => $status]);
+                if ($previousStatus !== $payment->status) {
+                    $this->audit->recordSnapshot($order, 'gateway_payment_reconciled', ['attempt_status' => $previousStatus], [
+                        'payment_id' => $payment->id, 'attempt_status' => $payment->status,
+                        'payment_status' => $status, 'checkout_status' => $checkout->status,
+                    ]);
+                }
             }
             if ($event) {
                 $checkout->events()->create([...$event, 'gateway_payment_id' => $entity['id'], 'processed_at' => now()]);

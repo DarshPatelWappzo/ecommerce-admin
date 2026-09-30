@@ -48,6 +48,7 @@ Route::prefix('tenant')->name('tenant.')->group(function (): void {
                 Route::post('orders/{order}/payments/collect-cod', 'collect')->whereNumber('order')->name('orders.payments.collect-cod');
                 Route::post('orders/{order}/payments/initiate', 'initiate')->whereNumber('order')->name('orders.payments.initiate');
                 Route::post('orders/{order}/payments/verify', 'verify')->whereNumber('order')->name('orders.payments.verify');
+                Route::post('orders/{order}/payments/reconcile', 'reconcile')->whereNumber('order')->middleware('throttle:10,1')->name('orders.payments.reconcile');
                 Route::get('orders/{order}/payment-status', 'status')->whereNumber('order')->name('orders.payment-status');
             });
             Route::patch('coupons/{coupon}/status', [TenantCouponController::class, 'status'])->name('coupons.status');

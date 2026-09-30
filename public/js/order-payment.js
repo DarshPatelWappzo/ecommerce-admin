@@ -29,7 +29,6 @@
             ...(body === undefined ? {} : { body: JSON.stringify(body) }),
         });
         const data = await response.json().catch(() => ({}));
-        console.log("Payment request response", { url, body, response, data });
         if (!response.ok) {
             const errors = Object.values(data.errors || {}).flat();
             throw new Error(
@@ -46,7 +45,7 @@
     }
 
     async function checkStatus() {
-        const order = await request(button.dataset.statusUrl);
+        const order = await request(button.dataset.reconcileUrl, {});
         if (order.payment_status === "paid") {
             button.disabled = true;
             message("Payment confirmed. Refreshing order…", "success");
@@ -57,6 +56,10 @@
             "Payment is not confirmed as paid yet. If money was deducted, wait for confirmation before retrying.",
             "warning",
         );
+        if (order.payment_status === "failed") {
+            awaitingConfirmation = false;
+            button.disabled = false;
+        }
         return false;
     }
 

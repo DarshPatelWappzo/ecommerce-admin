@@ -130,7 +130,24 @@ class TenantPaymentController extends Controller
             'received_amount' => $summary['received_amount'],
             'outstanding_amount' => $summary['outstanding_amount'],
             'payments' => $record->payments,
+            'payment_review_required' => $record->paymentCheckout?->status === 'review',
         ]];
+
+        return response()->json($data);
+    }
+
+    /**
+     * Recover missed provider updates for the authenticated tenant order.
+     * Use it when payment happened but your website did not receive confirmation—for example, the browser closed, the network failed, or the webhook was missed.
+     * called after verify, it will not create duplicate charges or refunds, but will reconcile the order payment state with the provider facts.
+     * @param  TenantPaymentRequest  $request  Authorized payment operator.
+     * @param  int  $order  Local order identifier.
+     * @return JsonResponse Reconciled order summary.
+     */
+    public function reconcile(TenantPaymentRequest $request, int $order): JsonResponse
+    {
+        $record = $this->service->recover($order, $this->tenantDatabaseId($request));
+        $data = ['data' => (new TenantOrderResource($record))->resolve($request)];
 
         return response()->json($data);
     }

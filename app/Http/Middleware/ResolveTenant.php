@@ -22,9 +22,12 @@ class ResolveTenant
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $domainName = Str::of((string) ($request->header('X-Tenant-Domain')
-            ?? $request->input('domain')
-            ?? ($request->hasSession() ? $request->session()->get('tenant_domain') : null)))
+        $sessionBound = $request->routeIs('tenant.orders.*', 'tenant.payments.*');
+        $domainName = Str::of((string) ($sessionBound
+            ? ($request->hasSession() ? $request->session()->get('tenant_domain') : null)
+            : ($request->header('X-Tenant-Domain')
+                ?? $request->input('domain')
+                ?? ($request->hasSession() ? $request->session()->get('tenant_domain') : null))))
             ->trim()
             ->lower()
             ->toString();

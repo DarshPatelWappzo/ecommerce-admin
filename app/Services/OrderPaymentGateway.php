@@ -19,6 +19,9 @@ interface OrderPaymentGateway
 
     public function fetchPayment(string $id): array;
 
+    /** @return list<array<string, mixed>> */
+    public function fetchOrderPayments(string $id): array;
+
     public function verifyPayment(string $orderId, string $paymentId, string $signature): void;
 
     public function verifyWebhook(string $body, string $signature): bool;

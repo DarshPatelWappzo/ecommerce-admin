@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AuthenticateTenantToken;
 use App\Http\Middleware\ResolveTenant;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -29,8 +30,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (Throwable $exception, Request $request): ?JsonResponse {
             if (
-                ! $request->routeIs('api.tenant.payments.*', 'api.tenant.orders.payments.*', 'api.tenant.orders.payment-status')
+                ! $request->routeIs('api.tenant.payments.*', 'api.tenant.orders.payments.*', 'api.tenant.orders.payment-status', 'tenant.orders.payments.*', 'tenant.orders.payment-status')
                 || $exception instanceof ValidationException
+                || $exception instanceof AuthenticationException
             ) {
                 return null;
             }

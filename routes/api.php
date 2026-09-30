@@ -40,6 +40,7 @@ Route::middleware(AuthenticateTenantToken::class)->group(function (): void {
         Route::get('tenant/orders/{order}/payment-status', 'status')->whereNumber('order')->name('api.tenant.orders.payment-status');
         Route::post('tenant/orders/{order}/payments/initiate', 'initiate')->whereNumber('order')->name('api.tenant.orders.payments.initiate');
         Route::post('tenant/orders/{order}/payments/verify', 'verify')->whereNumber('order')->name('api.tenant.orders.payments.verify');
+        Route::post('tenant/orders/{order}/payments/reconcile', 'reconcile')->whereNumber('order')->middleware('throttle:10,1')->name('api.tenant.orders.payments.reconcile'); //
         Route::post('tenant/orders/{order}/payments/collect-cod', 'collect')->whereNumber('order')->name('api.tenant.orders.payments.collect-cod');
     });
     Route::apiResource('tenant/coupons', TenantCouponController::class)->names('api.tenant.coupons');

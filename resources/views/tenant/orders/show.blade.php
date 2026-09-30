@@ -20,7 +20,14 @@
                 $permissions[$action] &&
                 ($action !== 'deliver' || $fullyPaid) &&
                 in_array($target, \App\Models\Tenant\Order::TRANSITIONS[$order->status], true) &&
-                !($action === 'cancel' && ((float) $summary['received_amount'] > 0 || $order->paymentCheckout))
+                $order->paymentCheckout?->status !== 'review' &&
+                !(
+                    $action === 'cancel' &&
+                    (\App\Services\TenantOrderCalculationService::money($summary['received_amount'])->isGreaterThan(
+                        0,
+                    ) ||
+                        $order->paymentCheckout)
+                )
             ) {
                 $actions[$action] = ucfirst($action) . ' order';
             }
@@ -29,7 +36,7 @@
             $permissions['payments'] &&
             !$order->paymentCheckout &&
             !in_array($order->status, ['draft', 'cancelled']) &&
-            (float) $summary['outstanding_amount'] > 0
+            \App\Services\TenantOrderCalculationService::money($summary['outstanding_amount'])->isGreaterThan(0)
         ) {
             $actions['payments'] = 'Record payment';
         }
@@ -58,6 +65,7 @@
                     data-initiate-url="{{ route('tenant.orders.payments.initiate', $order) }}"
                     data-verify-url="{{ route('tenant.orders.payments.verify', $order) }}"
                     data-status-url="{{ route('tenant.orders.payment-status', $order) }}"
+                    data-reconcile-url="{{ route('tenant.orders.payments.reconcile', $order) }}"
                     data-order-number="{{ $order->order_number }}">Pay with Razorpay</button>
             @endif
             @if ($order->status === 'draft' && $permissions['update'])
@@ -73,7 +81,9 @@
             <button type="button" id="order-payment-refresh" class="btn btn-outline-secondary mb-4 d-none">Check payment
                 status</button>
         @endif
-        @if ((float) $summary['received_amount'] > 0 && in_array($order->status, ['pending', 'confirmed', 'processing']))
+        @if (
+            \App\Services\TenantOrderCalculationService::money($summary['received_amount'])->isGreaterThan(0) &&
+                in_array($order->status, ['pending', 'confirmed', 'processing']))
             <div class="alert alert-info">This order has received funds. Cancellation requires a refund workflow, which is
                 not available in this release.</div>
         @endif

@@ -1,4 +1,8 @@
 <h3 class="h6 mt-3">Payment timeline</h3>
+@if ($checkout?->status === 'review')
+    <div class="alert alert-danger">Payment needs manual review: an unexpected or duplicate capture was recorded.
+        Fulfilment is blocked until this is resolved. No refund has been issued.</div>
+@endif
 <ul class="list-group list-group-flush">
     @foreach ($payments as $attempt)
         <li class="list-group-item px-0">

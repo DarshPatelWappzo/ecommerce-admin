@@ -14,6 +14,9 @@ class TenantOrderResource extends JsonResource
         foreach (['items', 'addresses', 'payments', 'shipment', 'histories'] as $relation) {
             $data[$relation] = $this->whenLoaded($relation);
         }
+        if ($this->resource->relationLoaded('paymentCheckout')) {
+            $data['payment_review_required'] = $this->paymentCheckout?->status === 'review';
+        }
         if ($this->resource->relationLoaded('payments')) {
             $received = TenantOrderCalculationService::money('0');
             foreach ($this->payments->where('status', 'captured') as $payment) {

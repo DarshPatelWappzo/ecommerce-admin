@@ -52,7 +52,7 @@ class TenantOrderService
                 'internal_note' => $input['internal_note'] ?? null,
             ];
             if (! $id) {
-                $data += ['order_number' => 'ORD-' . Str::ulid(), 'order_date' => now(), 'source' => $source, 'status' => 'draft', 'payment_status' => 'unpaid', 'created_by' => $actor->id];
+                $data += ['order_number' => 'ORD-'.Str::ulid(), 'order_date' => now(), 'source' => $source, 'status' => 'draft', 'payment_status' => 'unpaid', 'created_by' => $actor->id];
             }
             $this->orders->save($order, $data);
             $this->orders->replaceDetails($order, $calculation['items'], $addresses);
@@ -82,9 +82,9 @@ class TenantOrderService
 
             return [
                 'customer_id' => $customer->id,
-                'customer_name' => trim($customer->first_name . ' ' . $customer->last_name),
+                'customer_name' => trim($customer->first_name.' '.$customer->last_name),
                 'customer_email' => $customer->email,
-                'customer_phone' => $customer->phone ? trim($customer->phone_country_code . ' ' . $customer->phone) : null,
+                'customer_phone' => $customer->phone ? trim($customer->phone_country_code.' '.$customer->phone) : null,
                 'company_name' => $customer->company_name,
                 'gstin' => $customer->gstin,
             ];
@@ -117,7 +117,7 @@ class TenantOrderService
             throw ValidationException::withMessages(['shipping' => 'Supply both addresses or select same as billing.']);
         }
 
-        return array_map(fn(string $type, array $address): array => ['type' => $type, ...$address, 'state_name' => config('customer_locations.IN.states.' . $address['state_code'])], ['billing', 'shipping'], [$billing, $shipping]);
+        return array_map(fn (string $type, array $address): array => ['type' => $type, ...$address, 'state_name' => config('customer_locations.IN.states.'.$address['state_code'])], ['billing', 'shipping'], [$billing, $shipping]);
     }
 
     /**
@@ -134,11 +134,14 @@ class TenantOrderService
         return DB::connection('tenant')->transaction(function () use ($id, $target, $actor, $data): Order {
             $order = $this->orders->find($id, true);
             $from = $order->status;
+            if ($order->paymentCheckout()->where('status', 'review')->exists()) {
+                throw ValidationException::withMessages(['payment_status' => 'Resolve the payment review before changing fulfilment status.']);
+            }
             if ($target === 'cancelled' && $order->paymentCheckout()->exists()) {
                 throw ValidationException::withMessages(['order' => 'A gateway checkout is active for this order. Reconcile it before cancellation; gateway refunds are not supported.']);
             }
             if (! in_array($target, Order::TRANSITIONS[$from], true)) {
-                throw ValidationException::withMessages(['status' => 'This order cannot move from ' . $from . ' to ' . $target . '.']);
+                throw ValidationException::withMessages(['status' => 'This order cannot move from '.$from.' to '.$target.'.']);
             }
             if ($target === 'delivered' && ($order->payment_status !== 'paid' || ! $this->captured($order)->isEqualTo($order->grand_total))) {
                 throw ValidationException::withMessages(['payment_status' => 'Collect or verify the full payment before marking this order as delivered.']);
@@ -170,7 +173,7 @@ class TenantOrderService
                         throw ValidationException::withMessages(['items' => 'Every ordered product, variant and tax must be available at confirmation.']);
                     }
                     if ($stockAction === 'reserve' && $variant->quantity - $variant->reserved_quantity < $item->quantity) {
-                        throw ValidationException::withMessages(['items' => 'Insufficient available stock for ' . $item->sku . '.']);
+                        throw ValidationException::withMessages(['items' => 'Insufficient available stock for '.$item->sku.'.']);
                     }
                     if ($stockAction !== 'reserve' && ($variant->reserved_quantity < $item->quantity || ($stockAction === 'ship' && $variant->quantity < $item->quantity))) {
                         throw ValidationException::withMessages(['items' => 'Inventory no longer matches the reservation. Resolve it before continuing.']);

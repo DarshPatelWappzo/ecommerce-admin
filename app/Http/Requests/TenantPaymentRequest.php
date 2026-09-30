@@ -21,7 +21,7 @@ class TenantPaymentRequest extends FormRequest
             return false;
         }
         $permission = match ($this->route()->getActionMethod()) {
-            'initiate', 'verify', 'collect' => 'orders.payments',
+            'initiate', 'verify', 'collect', 'reconcile' => 'orders.payments',
             'status', 'methods' => 'orders.view',
             default => 'payments.view',
         };
@@ -48,7 +48,7 @@ class TenantPaymentRequest extends FormRequest
             'index' => [
                 'search' => ['nullable', 'string', 'max:200'],
                 'method' => ['nullable', Rule::in(['cod', 'cash', 'bank_transfer', 'razorpay'])],
-                'status' => ['nullable', Rule::in(['pending', 'authorized', 'captured', 'failed', 'superseded'])],
+                'status' => ['nullable', Rule::in(['created', 'pending', 'authorized', 'captured', 'failed', 'superseded'])],
                 'from' => ['nullable', 'date_format:Y-m-d'],
                 'to' => ['nullable', 'date_format:Y-m-d', ...($this->filled('from') ? ['after_or_equal:from'] : [])],
                 'per_page' => ['nullable', 'integer', 'between:1,100'],

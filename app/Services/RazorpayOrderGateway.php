@@ -52,7 +52,10 @@ class RazorpayOrderGateway implements OrderPaymentGateway
                 ->all(['receipt' => $receipt, 'count' => 2])
                 ->toArray()
         );
-        if (count($orders['items'] ?? []) > 1) {
+        if (
+            ! is_array($orders['items'] ?? null) || ! array_is_list($orders['items'])
+            || count($orders['items']) > 1 || (isset($orders['items'][0]) && ! is_array($orders['items'][0]))
+        ) {
             throw new OrderPaymentGatewayException;
         }
 
@@ -90,6 +93,19 @@ class RazorpayOrderGateway implements OrderPaymentGateway
         } catch (SignatureVerificationError) {
             throw ValidationException::withMessages(['razorpay_signature' => 'The payment signature is invalid.']);
         }
+    }
+
+    public function fetchOrderPayments(string $id): array
+    {
+        $result = $this->call(fn(): array => $this->api()->order->fetch($id)->payments()->toArray());
+        if (
+            ! is_array($result['items'] ?? null) || ! array_is_list($result['items'])
+            || ! is_int($result['count'] ?? null) || $result['count'] !== count($result['items'])
+        ) {
+            throw new OrderPaymentGatewayException;
+        }
+
+        return $result['items'];
     }
 
     public function verifyWebhook(string $body, string $signature): bool
