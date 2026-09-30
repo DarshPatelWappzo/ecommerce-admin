@@ -99,7 +99,7 @@
                     </div>
                     <div class="col-md-4"><label for="payment_method" class="form-label">Payment method</label><select
                             class="form-select" id="payment_method" name="payment_method">
-                            @foreach (['cod' => 'Cash on delivery', 'cash' => 'Cash', 'bank_transfer' => 'Bank transfer'] as $method => $label)
+                            @foreach (\App\Services\TenantPaymentService::methods() as $method => $label)
                                 <option value="{{ $method }}" @selected(($input['payment_method'] ?? 'cod') === $method)>{{ $label }}
                                 </option>
                             @endforeach

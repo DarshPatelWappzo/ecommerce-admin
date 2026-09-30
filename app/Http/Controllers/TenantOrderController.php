@@ -11,6 +11,7 @@ use App\Repositories\TenantOrderRepository;
 use App\Services\TenantOrderCalculationService;
 use App\Services\TenantOrderIdempotencyService;
 use App\Services\TenantOrderService;
+use App\Services\TenantPaymentService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -37,7 +38,7 @@ class TenantOrderController extends Controller
     {
         $orders = $this->orders->paginate($request->validated());
         if ($request->is('api/*')) {
-            $data = $orders->through(fn (Order $order) => (new TenantOrderResource($order))->resolve($request));
+            $data = $orders->through(fn(Order $order) => (new TenantOrderResource($order))->resolve($request));
 
             return response()->json($data);
         }
@@ -98,6 +99,13 @@ class TenantOrderController extends Controller
         $data = $this->viewData($request);
         $data['order'] = $record;
         $data['summary'] = (new TenantOrderResource($record))->resolve($request);
+        $data['canPayWithRazorpay'] = $data['permissions']['payments']
+            && array_key_exists('razorpay', TenantPaymentService::methods())
+            && ! in_array($record->status, ['draft', 'cancelled'], true)
+            && $record->payment_status !== 'paid'
+            && $record->currency === 'INR'
+            && TenantOrderCalculationService::money($record->grand_total)->isGreaterThan(0)
+            && TenantOrderCalculationService::money($data['summary']['received_amount'])->isZero();
 
         return view('tenant.orders.show', $data);
     }
@@ -116,19 +124,19 @@ class TenantOrderController extends Controller
             if ($kind === 'customers') {
                 return [
                     'id' => $record->id,
-                    'text' => trim($record->first_name.' '.$record->last_name).' - '.$record->customer_code,
+                    'text' => trim($record->first_name . ' ' . $record->last_name) . ' - ' . $record->customer_code,
                     'profile' => $record->only(['first_name', 'last_name', 'email', 'phone', 'phone_country_code', 'company_name', 'gstin']),
                     'addresses' => $record->addresses->toArray(),
                 ];
             }
             if ($kind === 'taxes') {
-                return ['id' => $record->id, 'text' => $record->name.' - '.$record->rate.'%', 'name' => $record->name, 'code' => $record->code, 'rate' => $record->rate];
+                return ['id' => $record->id, 'text' => $record->name . ' - ' . $record->rate . '%', 'name' => $record->name, 'code' => $record->code, 'rate' => $record->rate];
             }
             $price = $this->calculator->catalogPrice($record);
 
             return [
                 'id' => $record->id,
-                'text' => $record->product->name.' - '.$record->sku.' - INR '.$price.' - Available '.($record->quantity - $record->reserved_quantity),
+                'text' => $record->product->name . ' - ' . $record->sku . ' - INR ' . $price . ' - Available ' . ($record->quantity - $record->reserved_quantity),
                 'product_id' => $record->product_id,
                 'price' => $price,
             ];
@@ -266,7 +274,7 @@ class TenantOrderController extends Controller
      */
     public function payments(TenantOrderActionRequest $request, int $order): JsonResponse|RedirectResponse
     {
-        $data = $this->idempotency->run($request->actor()->id, 'orders.payment.'.$order, $request->validated('idempotency_key'), $this->fingerprintInput($request), function () use ($request, $order): array {
+        $data = $this->idempotency->run($request->actor()->id, 'orders.payment.' . $order, $request->validated('idempotency_key'), $this->fingerprintInput($request), function () use ($request, $order): array {
             $record = $this->service->payment($order, $request->validated(), $request->actor());
 
             return ['data' => (new TenantOrderResource($record))->resolve($request), 'message' => 'Payment recorded successfully.'];
@@ -286,7 +294,7 @@ class TenantOrderController extends Controller
     private function transition(TenantOrderActionRequest $request, int $order, string $status): JsonResponse|RedirectResponse
     {
         $record = $this->service->transition($order, $status, $request->actor(), $request->validated());
-        $data = ['data' => (new TenantOrderResource($record))->resolve($request), 'message' => 'Order '.$status.'.'];
+        $data = ['data' => (new TenantOrderResource($record))->resolve($request), 'message' => 'Order ' . $status . '.'];
 
         return $this->respond($request, $data);
     }

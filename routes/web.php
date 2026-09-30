@@ -12,6 +12,7 @@ use App\Http\Controllers\TenantCouponController;
 use App\Http\Controllers\TenantCustomerAddressController;
 use App\Http\Controllers\TenantCustomerController;
 use App\Http\Controllers\TenantOrderController;
+use App\Http\Controllers\TenantPaymentController;
 use App\Http\Controllers\TenantProductController;
 use App\Http\Controllers\TenantRoleController;
 use App\Http\Controllers\TenantTaxController;
@@ -41,6 +42,14 @@ Route::prefix('tenant')->name('tenant.')->group(function (): void {
             ->name('dashboard');
 
         Route::middleware(RequireTenantPasswordChange::class)->group(function (): void {
+            Route::controller(TenantPaymentController::class)->group(function (): void {
+                Route::get('payments', 'index')->name('payments.index');
+                Route::get('payments/{payment}', 'show')->whereNumber('payment')->name('payments.show');
+                Route::post('orders/{order}/payments/collect-cod', 'collect')->whereNumber('order')->name('orders.payments.collect-cod');
+                Route::post('orders/{order}/payments/initiate', 'initiate')->whereNumber('order')->name('orders.payments.initiate');
+                Route::post('orders/{order}/payments/verify', 'verify')->whereNumber('order')->name('orders.payments.verify');
+                Route::get('orders/{order}/payment-status', 'status')->whereNumber('order')->name('orders.payment-status');
+            });
             Route::patch('coupons/{coupon}/status', [TenantCouponController::class, 'status'])->name('coupons.status');
             Route::resource('coupons', TenantCouponController::class);
             Route::prefix('orders')->name('orders.')->where(['order' => '[0-9]+'])->controller(TenantOrderController::class)->group(function (): void {

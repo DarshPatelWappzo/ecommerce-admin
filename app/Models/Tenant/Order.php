@@ -32,6 +32,11 @@ class Order extends TenantModel
         return $this->hasMany(OrderPayment::class)->orderBy('id');
     }
 
+    public function paymentCheckout(): HasOne
+    {
+        return $this->hasOne(OrderPaymentCheckout::class);
+    }
+
     public function histories(): HasMany
     {
         return $this->hasMany(OrderStatusHistory::class)->orderBy('id');

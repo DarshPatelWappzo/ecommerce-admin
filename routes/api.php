@@ -8,8 +8,10 @@ use App\Http\Controllers\Api\Tenant\TenantOrderController;
 use App\Http\Controllers\Api\Tenant\TenantProductController;
 use App\Http\Controllers\Api\Tenant\TenantUserController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\OrderPaymentWebhookController;
 use App\Http\Controllers\TenantCatalogController;
 use App\Http\Controllers\TenantCouponController;
+use App\Http\Controllers\TenantPaymentController;
 use App\Http\Middleware\AuthenticateTenantToken;
 use App\Http\Middleware\ResolveTenant;
 use Illuminate\Support\Facades\Route;
@@ -31,6 +33,15 @@ Route::controller(TenantAuthController::class)->group(function (): void {
 
 Route::middleware(AuthenticateTenantToken::class)->group(function (): void {
     Route::patch('tenant/coupons/{coupon}/status', [TenantCouponController::class, 'status'])->name('api.tenant.coupons.status');
+    Route::controller(TenantPaymentController::class)->group(function (): void {
+        Route::get('tenant/payments/methods', 'methods')->name('api.tenant.payments.methods');
+        Route::get('tenant/payments', 'index')->name('api.tenant.payments.index');
+        Route::get('tenant/payments/{payment}', 'show')->whereNumber('payment')->name('api.tenant.payments.show');
+        Route::get('tenant/orders/{order}/payment-status', 'status')->whereNumber('order')->name('api.tenant.orders.payment-status');
+        Route::post('tenant/orders/{order}/payments/initiate', 'initiate')->whereNumber('order')->name('api.tenant.orders.payments.initiate');
+        Route::post('tenant/orders/{order}/payments/verify', 'verify')->whereNumber('order')->name('api.tenant.orders.payments.verify');
+        Route::post('tenant/orders/{order}/payments/collect-cod', 'collect')->whereNumber('order')->name('api.tenant.orders.payments.collect-cod');
+    });
     Route::apiResource('tenant/coupons', TenantCouponController::class)->names('api.tenant.coupons');
     Route::prefix('tenant/orders')->name('api.tenant.orders.')->where(['order' => '[0-9]+'])->controller(TenantOrderController::class)->group(function (): void {
         Route::get('/', 'index')->name('index');
@@ -101,3 +112,5 @@ Route::middleware(AuthenticateTenantToken::class)->group(function (): void {
         Route::post('/tenant/change-password', 'changePassword')->name('api.tenant.password.change');
     });
 });
+
+Route::post('tenant/payments/razorpay/webhook', OrderPaymentWebhookController::class)->name('api.tenant.payments.webhook');

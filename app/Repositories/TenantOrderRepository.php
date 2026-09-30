@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 
 class TenantOrderRepository
 {
-    public const RELATIONS = ['items', 'addresses', 'payments', 'shipment', 'histories'];
+    public const RELATIONS = ['items', 'addresses', 'payments', 'paymentCheckout.events', 'shipment', 'histories'];
 
     /**
      * Fetch an order by identifier, optionally locking it for update.
@@ -26,7 +26,9 @@ class TenantOrderRepository
      */
     public function find(int $id, bool $lock = false): Order
     {
-        return Order::query()->when($lock, fn(Builder $query) => $query->lockForUpdate())->findOrFail($id);
+        return Order::query()
+            ->when($lock, fn(Builder $query) => $query->lockForUpdate())
+            ->findOrFail($id);
     }
 
     /**

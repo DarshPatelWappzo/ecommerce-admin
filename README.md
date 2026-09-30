@@ -299,7 +299,7 @@ Idempotency-Key: receipt-2026-0001
 {"method":"bank_transfer","reference_number":"BANK-REF-123","amount":"100.00","currency":"INR"}
 ```
 
-Supported receipt methods are `cod`, `cash`, and `bank_transfer`. References are required, trimmed, uppercased and unique per order/method. Only captured receipts count towards received/outstanding and paid/partially_paid status; selecting COD records a pending intent, not receipt of funds. The server rejects overpayment, payments against draft/cancelled orders, and client attempts to record online payments. It preserves separate receipt attempts. Captured funds block cancellation because no refund workflow exists. Gateway identity columns are reserved with a provider/account/payment unique index; no online capture endpoint or SaaS subscription reuse is introduced.
+Supported offline receipt methods are `cod`, `cash`, and `bank_transfer`. References are required, trimmed, uppercased and unique per order/method. Only captured receipts count towards received/outstanding and paid/partially_paid status; selecting COD records a pending intent, not receipt of funds. The server rejects overpayment, payments against draft/cancelled orders, and client attempts to record online payments through the receipt endpoint. Captured funds block cancellation because no refund workflow exists. Customer Razorpay payments use the separate verified checkout flow below, preserving the same tenant receipt ledger and gateway identity uniqueness.
 
 Other action examples:
 
@@ -366,3 +366,94 @@ One coupon per order. Start/end instants are inclusive and use the application t
 Submission, usage checks and redemption creation share the existing tenant transaction. Coupon row locks serialize competing redemptions and coupon edits; locking reads avoid stale usage/restriction snapshots. The unique redemption `order_id` and existing durable idempotency key prevent retry duplication. Coupon deletion is soft; order code, amount, rules, eligible subtotal and per-line allocations remain historical snapshots. Drafts created before this migration may need reopening and saving to refresh their pricing fingerprint.
 
 Focused tests: `php artisan test --compact tests/Feature/TenantCouponTest.php tests/Feature/TenantOrderManagementTest.php`. Coverage includes authorization, tenant isolation, restrictions, dates, limits, competing draft submission, retries, cancellation, tax rounding and historical totals. These SQLite tests exercise repeated/competing submissions sequentially; actual simultaneous MySQL/InnoDB execution is not covered.
+
+## Customer order payments
+
+This module handles purchases made from tenant stores through the existing **tenant staff** admin/API. It does not add a storefront or customer authentication. It extends tenant `order_payments`; central `packages` and `user_packages` are unchanged. There is no Razorpay subscription implementation in this repository to reuse.
+
+### Installation and configuration
+
+Run `composer install` to install the locked official `razorpay/razorpay` PHP SDK (2.9.3). Apply the two additive tenant migrations using `php artisan tenant:migrate-all --no-interaction`:
+
+- `2026_09_28_061707_extend_order_payments_for_gateway_processing.php`: payment failure/verification timestamps, `order_payment_checkouts`, and `order_payment_events`.
+- `2026_09_28_061708_add_payment_management_permissions.php`: `payments.view`, automatically granted to existing Admin roles. New provisioning also includes it.
+
+Configure these deployment variables (names/placeholders are in `.env.example`; no secrets belong in Git):
+
+| Variable | Purpose |
+| --- | --- |
+| `ORDER_PAYMENTS_COD_ENABLED` | Enable COD selection/collection; defaults true |
+| `ORDER_PAYMENTS_CASH_ENABLED` | Enable existing cash receipts; defaults true |
+| `ORDER_PAYMENTS_BANK_TRANSFER_ENABLED` | Enable existing bank receipts; defaults true |
+| `ORDER_PAYMENTS_RAZORPAY_ENABLED` | Enable new Razorpay checkouts; defaults false |
+| `ORDER_RAZORPAY_KEY_ID` | Customer-order public key ID |
+| `ORDER_RAZORPAY_KEY_SECRET` | Customer-order API/signature secret |
+| `ORDER_RAZORPAY_WEBHOOK_SECRET` | Separate webhook signing secret |
+
+These deployment-wide settings live in `config/order_payments.php`; no tenant payment-settings system existed. Keep these credentials independent of package/subscription credentials. Configure automatic capture in the Razorpay Dashboard. Authorization alone remains pending; only server-verified captured funds mark an order paid. Disabling new checkouts does not disable verification or webhooks for existing ones. Retain the original account credentials to reconcile outstanding checkouts.
+
+Register an HTTPS webhook for **POST `/api/tenant/payments/razorpay/webhook`**, subscribing to `payment.authorized`, `payment.captured`, `payment.failed`, and `order.paid`. This route has no bearer authentication or browser CSRF; it authenticates the unmodified raw body using `X-Razorpay-Signature` and the separate secret. Razorpay's `X-Razorpay-Event-Id` is deduplicated in the selected tenant database (a raw-body hash is used when absent). Only event IDs, type, digest, provider payment ID, and processing time are persisted, never full gateway payloads.
+
+After signature verification, the application fetches the provider order using its own SDK credentials and resolves the central tenant ID from **server-created provider order notes**. It checks the local checkout reference, amount, currency, and provider account again inside the selected tenant. It never accepts a tenant header/body ID as payment ownership. Unrelated subscription/package events are ignored. Failed processing returns a retryable 503; invalid signatures return 401.
+
+### Staff API
+
+Send the existing tenant bearer token. Monetary response fields remain decimal strings, except checkout `amount`, which is integer paise. No client amount or payment-status field is trusted.
+
+| Method | Endpoint | Permission |
+| --- | --- | --- |
+| GET | `/api/tenant/payments/methods` | `orders.view` |
+| GET | `/api/tenant/payments` | `payments.view` |
+| GET | `/api/tenant/payments/{payment}` | `payments.view` |
+| GET | `/api/tenant/orders/{order}/payment-status` | `orders.view` |
+| POST | `/api/tenant/orders/{order}/payments/initiate` | `orders.payments` |
+| POST | `/api/tenant/orders/{order}/payments/verify` | `orders.payments` |
+| POST | `/api/tenant/orders/{order}/payments/collect-cod` | `orders.payments` |
+
+Create/submit an order using the existing order API and any enabled `payment_method`, including `razorpay`. Checkout is allowed only for submitted, non-cancelled, positive INR orders without existing collected funds. It uses the stored final total including coupon, shipping, and tax, without repricing historical lines.
+
+Initiation has an empty body and returns 200:
+
+```json
+{"data":{"key":"rzp_test_example","order_id":"order_example","amount":22420,"currency":"INR","local_order_id":123}}
+```
+
+Pass these checkout options to the integrating client. After checkout, POST the provider result to the authenticated verification endpoint:
+
+```json
+{"razorpay_order_id":"order_example","razorpay_payment_id":"pay_example","razorpay_signature":"<64-character signature>"}
+```
+
+Verification checks the signature against the **stored** provider order ID, fetches both the provider order and payment, verifies ownership/amount/currency/status, and returns `message` plus `data` containing the existing order resource. An authorized result has `payment_status: pending`; it is not a successful collection. Repeated successful callbacks return the same paid state without another receipt. Webhooks and callbacks may arrive in either order.
+
+COD collection POST body:
+
+```json
+{"reference_number":"COD-RECEIPT-123"}
+```
+
+The server collects the remaining balance, records staff ID and time, and returns `message` plus `data`. A second collection is rejected with 422. The older offline receipt endpoint still supports partial cash/COD/bank receipts and its existing `Idempotency-Key` contract.
+
+Payment list filters: `search` (order number/customer name/email), `method`, `status`, `from`, `to`, and `per_page`. Invalid filters/input return the established 422 `message/error_code/errors` envelope. List responses use the top-level paginator; individual payments use `data`. A reused webhook event ID with different content returns 409. Provider outages/configuration failures return a sanitized 503 without provider payloads, secrets, or exception traces.
+
+### State, retries, and admin
+
+Order payment status is independent of fulfillment: `unpaid → pending → paid`, or `pending → failed → pending` on retry. Existing offline partial receipts retain `partially_paid`. Payment attempt statuses use the existing ledger convention `captured` for received funds, plus `pending`, `authorized`, `failed`, and `superseded` for settled offline intentions. A later failed event cannot downgrade an already captured payment or a paid order.
+
+One durable checkout is reserved per order before contacting Razorpay. Repeated/abandoned/failed checkouts reuse its provider order so old and new checkout windows cannot independently charge separate provider orders. Each provider payment ID has its own attempt row; failures remain visible. All local reconciliation and offline receipts serialize on the order row and gateway payment IDs are uniquely constrained.
+
+If order creation times out after possibly reaching Razorpay, subsequent initiation searches by the original UUID receipt. It never blindly creates a second provider order. If no matching order can yet be found (including a process stopping between reserving a checkout and sending the request), the checkout remains pending and returns 503 for operational reconciliation. Do not delete/reset that record until the provider account has been checked.
+
+Once an online checkout is reserved, offline collection and cancellation are blocked because the provider order can still accept payment. Refunds, refund reconciliation, switching providers after initiation, partial online payments, and cancellation of active gateway checkouts are not implemented. Externally refunded payments are rejected for manual reconciliation; this module does not initiate refunds. Keep gateway account credentials stable while payments are outstanding. The SDK uses its own 60-second request timeout.
+
+Admin screens: `/tenant/payments` (search/filter/pagination), `/tenant/payments/{payment}` (method, status, IDs, reference, failure details, recorded staff, timeline), and the expanded `/tenant/orders/{order}` (attempts, collected/outstanding totals, gateway checkout, timeline, COD collection). Payments appears in the sidebar for `payments.view`; collection uses the existing `orders.payments` permission.
+
+Verification:
+
+```bash
+php artisan test --compact tests/Feature/TenantPaymentTest.php tests/Feature/TenantOrderManagementTest.php tests/Feature/TenantCouponTest.php tests/Feature/TenantApiAuthenticationTest.php
+```
+
+Gateway network calls are mocked while the real SDK signature verifier runs. Tests exercise tenant routing/isolation, permissions, totals snapshots, COD, signature and amount mismatches, authorized/captured states, replay ordering, failures/retries, and paid-order protection. SQLite tests do not prove simultaneous MySQL/InnoDB locking; perform concurrency and Razorpay test-mode end-to-end checks in staging before accepting real payments.
+
+Official references: [PHP integration](https://razorpay.com/docs/payments/server-integration/php/integration-steps/), [webhook verification and duplicate handling](https://razorpay.com/docs/webhooks/validate-test/), [order receipt lookup](https://razorpay.com/docs/api/orders/fetch-all/).

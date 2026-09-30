@@ -57,17 +57,20 @@
                                 <td>{{ $user->mobile_number ?: 'NA' }}</td>
                                 <td>{{ $user->roles->pluck('name')->join(', ') ?: 'No role assigned' }}</td>
                                 <td>
-                                    <span class="badge rounded-pill text-bg-{{ $user->status === 'active' ? 'success' : 'secondary' }}">
+                                    <span
+                                        class="badge rounded-pill text-bg-{{ $user->status === 'active' ? 'success' : 'secondary' }}">
                                         {{ ucfirst($user->status) }}
                                     </span>
                                 </td>
                                 <td>{{ $user->created_at?->format('d M Y') }}</td>
                                 <td>
-                                    <a class="btn btn-sm btn-outline-primary" href="{{ route('tenant.users.edit', $user) }}">
+                                    <a class="btn btn-sm btn-outline-primary"
+                                        href="{{ route('tenant.users.edit', $user) }}">
                                         <i class="fa-solid fa-pen-to-square me-1" aria-hidden="true"></i>
                                     </a>
                                     @if ($canDeleteUsers)
-                                        <form class="d-inline" method="POST" action="{{ route('tenant.users.destroy', $user) }}">
+                                        <form class="d-inline" method="POST"
+                                            action="{{ route('tenant.users.destroy', $user) }}">
                                             @csrf
                                             @method('DELETE')
                                             <button class="btn btn-sm btn-outline-danger" type="submit"

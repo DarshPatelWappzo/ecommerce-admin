@@ -71,6 +71,13 @@
                     href="{{ route('tenant.orders.index') }}" data-tooltip="Orders"><i class="fa-solid fa-receipt"
                         aria-hidden="true"></i><span>Orders</span></a>
             @endif
+            @if (auth('tenant')->user()?->status === 'active' &&
+                    app(\App\Repositories\TenantRoleRepository::class)->userHasPermission(auth('tenant')->user(), 'payments.view'))
+                <a class="sidebar-link {{ request()->routeIs('tenant.payments.*') ? 'active' : '' }}"
+                    href="{{ route('tenant.payments.index') }}" data-tooltip="Payments">
+                    <i class="fa-solid fa-credit-card" aria-hidden="true"></i><span>Payments</span>
+                </a>
+            @endif
         </nav>
     </div>
 </aside>

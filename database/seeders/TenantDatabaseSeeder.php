@@ -47,6 +47,7 @@ class TenantDatabaseSeeder extends Seeder
             'orders.process',
             'orders.cancel',
             'orders.payments',
+            'payments.view',
             'orders.ship',
             'orders.deliver',
             'orders.price_override',

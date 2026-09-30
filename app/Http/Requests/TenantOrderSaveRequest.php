@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Services\TenantPaymentService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Exists;
@@ -57,13 +58,13 @@ class TenantOrderSaveRequest extends TenantOrderRequest
 
         foreach (['billing', 'shipping'] as $type) {
             foreach (['name', 'phone', 'address_line_1', 'city', 'postal_code', 'country_code', 'state_code'] as $field) {
-                $rules[$type.'.'.$field][0] = 'required';
+                $rules[$type . '.' . $field][0] = 'required';
             }
         }
 
         foreach (['shipping_amount', 'items.*.unit_price', 'items.*.discount_amount'] as $field) {
             $rules[$field] = array_map(
-                fn ($rule) => $rule === 'decimal:0,2' ? 'regex:/^\d+(?:\.\d{1,2})?$/' : $rule,
+                fn($rule) => $rule === 'decimal:0,2' ? 'regex:/^\d+(?:\.\d{1,2})?$/' : $rule,
                 $rules[$field],
             );
         }
@@ -89,7 +90,7 @@ class TenantOrderSaveRequest extends TenantOrderRequest
             'currency' => ['sometimes', Rule::in(['INR'])],
             'shipping_amount' => ['nullable', ...$money],
             'shipping_tax_id' => ['nullable', 'integer', Rule::exists('tenant.taxes', 'id')->whereNull('deleted_at')->where('is_active', true)],
-            'payment_method' => ['sometimes', Rule::in(['cod', 'cash', 'bank_transfer'])],
+            'payment_method' => ['sometimes', Rule::in(array_keys(TenantPaymentService::methods()))],
             'customer_note' => ['nullable', 'string', 'max:2000'],
             'internal_note' => ['nullable', 'string', 'max:5000'],
             'submit_as' => ['sometimes', Rule::in(['draft', 'pending', 'confirmed'])],
@@ -106,17 +107,17 @@ class TenantOrderSaveRequest extends TenantOrderRequest
         foreach (['billing', 'shipping'] as $type) {
             $rules[$type] = [$type === 'shipping' || $partial || $preview ? 'sometimes' : 'required', 'array:name,phone,address_line_1,address_line_2,city,state_code,country_code,postal_code'];
             foreach (['name' => 200, 'phone' => 30, 'address_line_1' => 255, 'address_line_2' => 255, 'city' => 100, 'postal_code' => 20] as $field => $max) {
-                $rules[$type.'.'.$field] = [$field === 'address_line_2' ? 'nullable' : 'required_with:'.$type, 'string', 'max:'.$max];
+                $rules[$type . '.' . $field] = [$field === 'address_line_2' ? 'nullable' : 'required_with:' . $type, 'string', 'max:' . $max];
             }
-            $rules[$type.'.country_code'] = ['required_with:'.$type, Rule::in(['IN'])];
-            $rules[$type.'.state_code'] = ['required_with:'.$type, Rule::in(array_keys(config('customer_locations.IN.states')))];
+            $rules[$type . '.country_code'] = ['required_with:' . $type, Rule::in(['IN'])];
+            $rules[$type . '.state_code'] = ['required_with:' . $type, Rule::in(array_keys(config('customer_locations.IN.states')))];
         }
         if (
             $this->route()->getActionMethod() === 'store' && is_string($this->input('idempotency_key')) && DB::connection('tenant')->table('order_idempotency_keys')
-                ->where('principal_id', $this->actor()->id)->where('operation', 'orders.create')->where('key', $this->input('idempotency_key'))->whereNotNull('response')->exists()
+            ->where('principal_id', $this->actor()->id)->where('operation', 'orders.create')->where('key', $this->input('idempotency_key'))->whereNotNull('response')->exists()
         ) {
             foreach (['customer_id', 'shipping_tax_id', 'items.*.product_id', 'items.*.product_variant_id'] as $field) {
-                $rules[$field] = array_values(array_filter($rules[$field], fn ($rule) => ! $rule instanceof Exists));
+                $rules[$field] = array_values(array_filter($rules[$field], fn($rule) => ! $rule instanceof Exists));
             }
         }
 

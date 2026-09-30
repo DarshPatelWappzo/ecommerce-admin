@@ -27,6 +27,24 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(SubstituteBindings::class, AuthenticateTenantToken::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (Throwable $exception, Request $request): ?JsonResponse {
+            if (
+                ! $request->routeIs('api.tenant.payments.*', 'api.tenant.orders.payments.*', 'api.tenant.orders.payment-status')
+                || $exception instanceof ValidationException
+            ) {
+                return null;
+            }
+            $status = $exception instanceof HttpException ? $exception->getStatusCode() : 500;
+            $message = match ($status) {
+                401 => 'Authentication is required.',
+                403 => 'You do not have permission to perform this payment action.',
+                404 => 'The requested payment or order was not found.',
+                429 => 'Too many payment requests. Please retry later.',
+                default => 'Payment processing could not be completed. Please retry or contact support.',
+            };
+
+            return response()->json(['message' => $message, 'error_code' => $status], $status);
+        });
         $exceptions->render(function (HttpException $exception, Request $request): ?JsonResponse {
             if ($request->routeIs('api.tenant.login') && $exception->getStatusCode() === 429) {
                 return response()->json([

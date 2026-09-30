@@ -3,6 +3,9 @@
 @section('content')
     @php
         $actions = [];
+        $fullyPaid =
+            $order->payment_status === 'paid' &&
+            \App\Services\TenantOrderCalculationService::money($summary['outstanding_amount'])->isZero();
         foreach (
             [
                 'confirm' => 'confirmed',
@@ -15,14 +18,16 @@
         ) {
             if (
                 $permissions[$action] &&
+                ($action !== 'deliver' || $fullyPaid) &&
                 in_array($target, \App\Models\Tenant\Order::TRANSITIONS[$order->status], true) &&
-                !($action === 'cancel' && (float) $summary['received_amount'] > 0)
+                !($action === 'cancel' && ((float) $summary['received_amount'] > 0 || $order->paymentCheckout))
             ) {
                 $actions[$action] = ucfirst($action) . ' order';
             }
         }
         if (
             $permissions['payments'] &&
+            !$order->paymentCheckout &&
             !in_array($order->status, ['draft', 'cancelled']) &&
             (float) $summary['outstanding_amount'] > 0
         ) {
@@ -39,11 +44,22 @@
             </div><a href="{{ route('tenant.orders.index') }}" class="btn btn-light">Back to orders</a>
         </div>
         @include('tenant.customers._notifications')
+        @if ($order->status === 'shipped' && !$fullyPaid)
+            <div class="alert alert-warning">Collect or verify the full payment before marking this order as delivered.</div>
+        @endif
+        @include('tenant.partials.validation-errors')
         @if ($order->coupon_code)
             <div class="alert alert-info">Coupon {{ $order->coupon_code }}: INR {{ $order->coupon_discount }} (included in
                 total discount).</div>
         @endif
         <div class="d-flex flex-wrap gap-2 mb-4">
+            @if ($canPayWithRazorpay)
+                <button type="button" class="btn btn-success" id="order-razorpay-pay"
+                    data-initiate-url="{{ route('tenant.orders.payments.initiate', $order) }}"
+                    data-verify-url="{{ route('tenant.orders.payments.verify', $order) }}"
+                    data-status-url="{{ route('tenant.orders.payment-status', $order) }}"
+                    data-order-number="{{ $order->order_number }}">Pay with Razorpay</button>
+            @endif
             @if ($order->status === 'draft' && $permissions['update'])
                 <a class="btn btn-outline-primary" href="{{ route('tenant.orders.edit', $order) }}">Edit draft</a>
             @endif
@@ -52,6 +68,11 @@
                     data-bs-toggle="modal" data-bs-target="#order-{{ $action }}-modal">{{ $label }}</button>
             @endforeach
         </div>
+        @if ($canPayWithRazorpay)
+            <div id="order-payment-feedback" class="alert alert-info d-none" role="status" aria-live="polite"></div>
+            <button type="button" id="order-payment-refresh" class="btn btn-outline-secondary mb-4 d-none">Check payment
+                status</button>
+        @endif
         @if ((float) $summary['received_amount'] > 0 && in_array($order->status, ['pending', 'confirmed', 'processing']))
             <div class="alert alert-info">This order has received funds. Cancellation requires a refund workflow, which is
                 not available in this release.</div>
@@ -159,6 +180,28 @@
         </div>
         <section class="dashboard-card mb-4">
             <h2 class="h5">Payments</h2>
+            <p>Received: {{ $order->currency }} {{ $summary['received_amount'] }} · Outstanding: {{ $order->currency }}
+                {{ $summary['outstanding_amount'] }}</p>
+            @if ($order->paymentCheckout)
+                <p class="text-muted">Razorpay checkout:
+                    {{ $order->paymentCheckout->gateway_order_id ?: 'Awaiting provider reconciliation' }}.
+                    Offline collection and cancellation are locked while this checkout can receive funds.</p>
+            @elseif (
+                $permissions['payments'] &&
+                    !in_array($order->status, ['draft', 'cancelled']) &&
+                    $order->payment_status !== 'paid' &&
+                    $order->payments->where('method', 'cod')->where('status', 'pending')->isNotEmpty() &&
+                    config('order_payments.methods.cod.enabled'))
+                <form method="POST" action="{{ route('tenant.orders.payments.collect-cod', $order) }}"
+                    class="row g-2 mb-3">
+                    @csrf
+                    <div class="col-md-6"><label for="cod-reference" class="form-label">Collection receipt reference</label>
+                        <input id="cod-reference" name="reference_number" class="form-control" required maxlength="100">
+                    </div>
+                    <div class="col-md-6 align-self-end"><button class="btn btn-primary" type="submit">Mark COD collected:
+                            {{ $summary['outstanding_amount'] }}</button></div>
+                </form>
+            @endif
             <p class="form-text">Only captured receipts count as received. The pending payment method records the intended
                 method.</p>
             <div class="table-responsive">
@@ -168,6 +211,8 @@
                             <th>Date</th>
                             <th>Method</th>
                             <th>Reference</th>
+                            <th>Provider payment ID</th>
+                            <th>Recorded by</th>
                             <th>Status</th>
                             <th>Amount (INR)</th>
                         </tr>
@@ -178,15 +223,21 @@
                                 <td>{{ ($payment->paid_at ?? $payment->created_at)->format('d M Y H:i') }}</td>
                                 <td>{{ ucwords(str_replace('_', ' ', $payment->method)) }}</td>
                                 <td>{{ $payment->reference_number ?: '—' }}</td>
+                                <td>{{ $payment->gateway_payment_id ?: '—' }}</td>
+                                <td>{{ $payment->recorded_by ?: 'Provider verified' }}</td>
                                 <td>{{ ucfirst($payment->status) }}</td>
                                 <td>{{ $payment->amount }}</td>
                         </tr>@empty<tr>
-                                <td colspan="5">No payments recorded.</td>
+                                <td colspan="7">No payments recorded.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
+            @include('tenant.payments._timeline', [
+                'payments' => $order->payments,
+                'checkout' => $order->paymentCheckout,
+            ])
         </section>
         <section class="dashboard-card mb-4">
             <h2 class="h5">Shipment</h2>
@@ -244,7 +295,8 @@
                         @csrf
                         <div class="modal-header">
                             <h2 class="modal-title fs-5" id="order-{{ $action }}-title">{{ $label }}</h2>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
                             <div class="alert alert-danger d-none" data-order-errors role="alert"></div>
@@ -255,9 +307,11 @@
                                 <p>Outstanding: INR {{ $summary['outstanding_amount'] }}</p>
                                 <div class="mb-3"><label class="form-label" for="receipt-method">Method</label><select
                                         id="receipt-method" name="method" class="form-select" data-select2-disabled>
-                                        <option value="cod">Cash on delivery received</option>
-                                        <option value="cash">Cash</option>
-                                        <option value="bank_transfer">Bank transfer</option>
+                                        @foreach (\App\Services\TenantPaymentService::methods() as $method => $label)
+                                            @if ($method !== 'razorpay')
+                                                <option value="{{ $method }}">{{ $label }}</option>
+                                            @endif
+                                        @endforeach
                                     </select></div>
                                 <div class="mb-3"><label class="form-label" for="receipt-reference">Receipt / bank
                                         reference</label><input class="form-control" id="receipt-reference"
@@ -291,7 +345,7 @@
                         <div class="modal-footer"><button class="btn btn-light" type="button"
                                 data-bs-dismiss="modal">Close</button><button
                                 class="btn {{ $action === 'cancel' ? 'btn-danger' : 'btn-primary' }}"
-                                type="submit">{{ $label }}</button></div>
+                                type="submit">Process</button></div>
                     </form>
                 </div>
             </div>
@@ -299,6 +353,10 @@
     @endforeach
 @endsection
 @push('scripts')
+    @if ($canPayWithRazorpay)
+        <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
+        <script src="{{ asset('js/order-payment.js') }}" defer></script>
+    @endif
     <script src="{{ asset('vendor/jsvalidation/js/jsvalidation.js') }}"></script>
     @foreach ($actions as $action => $label)
         {!! JsValidator::make(

@@ -35,6 +35,7 @@ class TenantOrderService
             $expectedPricing = $input['expected_pricing_fingerprint'] ?? null;
             unset($input['idempotency_key'], $input['submit_as'], $input['expected_pricing_fingerprint']);
             $input = array_replace($order->draft_input ?? ['currency' => 'INR', 'shipping_amount' => '0.00', 'payment_method' => 'cod'], $input);
+            TenantPaymentService::requireEnabled($input['payment_method']);
             $calculation = $this->calculator->calculate($input, true);
             if ($submitAs === 'confirmed' && $expectedPricing !== null && ! hash_equals($expectedPricing, $calculation['fingerprint'])) {
                 throw ValidationException::withMessages(['items' => 'Prices or tax details changed since the preview. Review the updated totals before confirming.']);
@@ -133,8 +134,14 @@ class TenantOrderService
         return DB::connection('tenant')->transaction(function () use ($id, $target, $actor, $data): Order {
             $order = $this->orders->find($id, true);
             $from = $order->status;
+            if ($target === 'cancelled' && $order->paymentCheckout()->exists()) {
+                throw ValidationException::withMessages(['order' => 'A gateway checkout is active for this order. Reconcile it before cancellation; gateway refunds are not supported.']);
+            }
             if (! in_array($target, Order::TRANSITIONS[$from], true)) {
                 throw ValidationException::withMessages(['status' => 'This order cannot move from ' . $from . ' to ' . $target . '.']);
+            }
+            if ($target === 'delivered' && ($order->payment_status !== 'paid' || ! $this->captured($order)->isEqualTo($order->grand_total))) {
+                throw ValidationException::withMessages(['payment_status' => 'Collect or verify the full payment before marking this order as delivered.']);
             }
             if ($target === 'cancelled' && $this->captured($order)->isGreaterThan('0')) {
                 throw ValidationException::withMessages(['order' => 'This order has received funds. Cancellation requires a refund workflow, which is not available in this release.']);
@@ -220,8 +227,13 @@ class TenantOrderService
      */
     public function payment(int $id, array $data, User $actor): Order
     {
+        TenantPaymentService::requireEnabled($data['method']);
+
         return DB::connection('tenant')->transaction(function () use ($id, $data, $actor): Order {
             $order = $this->orders->find($id, true);
+            if ($order->paymentCheckout()->exists()) {
+                throw ValidationException::withMessages(['order' => 'An online checkout already owns this balance. Offline collection is not allowed.']);
+            }
             if (in_array($order->status, ['draft', 'cancelled'], true)) {
                 throw ValidationException::withMessages(['order' => 'Payments cannot be recorded against a draft or cancelled order.']);
             }
@@ -238,6 +250,9 @@ class TenantOrderService
             $payment = $order->payments()->create([...Arr::only($data, ['method', 'reference_number', 'amount', 'currency']), 'status' => 'captured', 'paid_at' => now(), 'recorded_by' => $actor->id]);
             $status = $captured->isEqualTo($order->grand_total) ? 'paid' : 'partially_paid';
             $this->orders->save($order, ['payment_status' => $status]);
+            if ($status === 'paid') {
+                $order->payments()->where('status', 'pending')->whereNull('gateway_payment_id')->update(['status' => 'superseded']);
+            }
             $this->audit->recordSnapshot($order, 'payment_recorded', null, ['payment_id' => $payment->id, 'amount' => $payment->amount, 'payment_status' => $status]);
 
             return $this->orders->details($id);

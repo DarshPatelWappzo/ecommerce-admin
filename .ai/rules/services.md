@@ -2,6 +2,8 @@
 paths:
   - 'app/Services/TenantOrder*.php'
   - 'app/Services/TenantCoupon*.php'
+  - app/Services/TenantPaymentService.php
+  - app/Services/TenantOrderService.php
 ---
 
 # Services
@@ -14,3 +16,9 @@ Orders use INR and tax-exclusive catalog prices with a single percentage tax. Do
 
 ## Coupon accounting and redemption lifecycle
 Coupons apply to eligible net merchandise after manual discounts and before existing per-line tax; shipping is excluded. Product/category restrictions form a union, with customer restrictions additional. Drafts consume no usage; pending through delivered orders consume one unique order redemption, released only on cancellation allowed by the existing captured-funds policy. Lock the coupon, restrictions and usage inside the tenant order transaction; preserve submitted snapshots. Guest orders cannot use per-customer limits or customer restrictions.
+
+## Customer order payment ownership and replay safety
+Reuse tenant order_payments for collected funds; captured is the existing received-money status. One durable checkout per order owns the immutable full balance; retry the same provider order and recover uncertain creation by UUID receipt, never blindly create another. Hold the order lock for reconciliation and block offline collection/cancellation after checkout reservation. Verify raw webhooks before resolving tenants from server-fetched provider order notes; never route by caller-supplied tenant IDs. No automatic refunds or active-checkout cancellation exists.
+
+## Collect payment before delivery
+Delivery requires both paid payment status and captured payments equal to the order grand total, checked under the order lock through the shared transition service for admin and API. COD must be explicitly collected before delivery; changing fulfillment status must never imply payment collection.
