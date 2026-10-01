@@ -8,6 +8,7 @@ use App\Http\Requests\TenantOrderSaveRequest;
 use App\Http\Resources\TenantOrderResource;
 use App\Models\Tenant\Order;
 use App\Repositories\TenantOrderRepository;
+use App\Services\TenantInvoiceService;
 use App\Services\TenantOrderCalculationService;
 use App\Services\TenantOrderIdempotencyService;
 use App\Services\TenantOrderService;
@@ -18,6 +19,22 @@ use Illuminate\Http\RedirectResponse;
 
 class TenantOrderController extends Controller
 {
+    /**
+     * Approve dispatch explicitly and attempt invoice issuance after commit.
+     *
+     * @param  TenantOrderActionRequest  $request  Authorized tenant approval request.
+     * @param  int  $order  Tenant order identifier.
+     * @param  TenantInvoiceService  $invoices  Shared invoice workflow.
+     * @return JsonResponse|RedirectResponse Approval result and any retryable invoice error.
+     */
+    public function approveDispatch(TenantOrderActionRequest $request, int $order, TenantInvoiceService $invoices): JsonResponse|RedirectResponse
+    {
+        $record = $invoices->approveDispatch($order, $request->actor());
+        $data = ['data' => (new TenantOrderResource($record))->resolve($request), 'message' => $record->invoice_error ?? 'Dispatch approved; invoice issued.'];
+
+        return $this->respond($request, $data);
+    }
+
     /**
      * Initialize the order workflow dependencies.
      *

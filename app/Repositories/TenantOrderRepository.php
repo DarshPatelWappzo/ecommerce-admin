@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 
 class TenantOrderRepository
 {
-    public const RELATIONS = ['items', 'addresses', 'payments', 'paymentCheckout.events', 'shipment', 'histories'];
+    public const RELATIONS = ['items', 'addresses', 'payments', 'paymentCheckout.events', 'shipment', 'histories', 'invoice'];
 
     /**
      * Fetch an order by identifier, optionally locking it for update.

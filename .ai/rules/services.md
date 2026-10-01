@@ -1,9 +1,10 @@
 ---
 paths:
-    - "app/Services/TenantOrder*.php"
-    - "app/Services/TenantCoupon*.php"
-    - app/Services/TenantPaymentService.php
-    - app/Services/TenantOrderService.php
+  - 'app/Services/TenantOrder*.php'
+  - 'app/Services/TenantCoupon*.php'
+  - app/Services/TenantPaymentService.php
+  - app/Services/TenantOrderService.php
+  - 'app/Services/TenantInvoice*.php'
 ---
 
 # Services
@@ -31,3 +32,9 @@ Delivery requires both paid payment status and captured payments equal to the or
 ## Preserve exceptional captures and recover without charging
 
 Record verified duplicate and late captures as financial facts; flag the checkout for review and block fulfilment instead of dropping the payment or issuing a refund. Recovery must use the stored provider order or durable receipt and never create a replacement charge for an ambiguous outcome. Webhook acknowledgements follow committed event and ledger writes; polling provides recovery when callbacks or webhooks are missed.
+
+## Invoice snapshots and approval
+Invoice discount_amount already includes coupon_discount; never subtract or display their sum as the total discount. Preserve the order's single-tax snapshots without inventing CGST/SGST/IGST. Dispatch approval is explicit and separate from payment; prepaid issuance needs fully captured funds, COD does not. Invoice work locks the order before the financial-year sequence, and runs synchronously after approval commits while tenant middleware owns the connection.
+
+## Seller details are optional for invoice issuance
+The user confirmed that missing seller configuration must not block invoice issuance. Snapshot whichever tenant seller details are available, preserve empty values without inventing an identity, and enforce order/payment/dispatch eligibility and financial consistency independently.

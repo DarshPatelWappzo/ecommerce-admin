@@ -78,6 +78,13 @@
                     <i class="fa-solid fa-credit-card" aria-hidden="true"></i><span>Payments</span>
                 </a>
             @endif
+            @if (auth('tenant')->user()?->status === 'active' &&
+                    app(\App\Repositories\TenantRoleRepository::class)->userHasPermission(auth('tenant')->user(), 'invoices.view'))
+                <a class="sidebar-link {{ request()->routeIs('tenant.invoices.*') ? 'active' : '' }}"
+                    href="{{ route('tenant.invoices.index') }}" data-tooltip="Invoices">
+                    <i class="fa-solid fa-file-invoice" aria-hidden="true"></i><span>Invoices</span>
+                </a>
+            @endif
         </nav>
     </div>
 </aside>

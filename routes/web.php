@@ -11,6 +11,7 @@ use App\Http\Controllers\TenantCategoryController;
 use App\Http\Controllers\TenantCouponController;
 use App\Http\Controllers\TenantCustomerAddressController;
 use App\Http\Controllers\TenantCustomerController;
+use App\Http\Controllers\TenantInvoiceController;
 use App\Http\Controllers\TenantOrderController;
 use App\Http\Controllers\TenantPaymentController;
 use App\Http\Controllers\TenantProductController;
@@ -42,6 +43,11 @@ Route::prefix('tenant')->name('tenant.')->group(function (): void {
             ->name('dashboard');
 
         Route::middleware(RequireTenantPasswordChange::class)->group(function (): void {
+            Route::resource('invoices', TenantInvoiceController::class)->except('destroy');
+            Route::post('invoices/{invoice}/issue', [TenantInvoiceController::class, 'issue'])->whereNumber('invoice')->name('invoices.issue');
+            Route::get('invoices/{invoice}/pdf', [TenantInvoiceController::class, 'pdf'])->whereNumber('invoice')->name('invoices.pdf');
+            Route::get('invoices/{invoice}/print', [TenantInvoiceController::class, 'print'])->whereNumber('invoice')->name('invoices.print');
+            Route::post('orders/{order}/approve-dispatch', [TenantOrderController::class, 'approveDispatch'])->whereNumber('order')->name('orders.approve-dispatch');
             Route::controller(TenantPaymentController::class)->group(function (): void {
                 Route::get('payments', 'index')->name('payments.index');
                 Route::get('payments/{payment}', 'show')->whereNumber('payment')->name('payments.show');

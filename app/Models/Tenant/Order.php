@@ -47,6 +47,11 @@ class Order extends TenantModel
         return $this->hasOne(OrderShipment::class);
     }
 
+    public function invoice(): HasOne
+    {
+        return $this->hasOne(Invoice::class);
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class)->withTrashed();

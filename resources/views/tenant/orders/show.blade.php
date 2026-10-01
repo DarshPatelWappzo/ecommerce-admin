@@ -54,7 +54,31 @@
         @if ($order->status === 'shipped' && !$fullyPaid)
             <div class="alert alert-warning">Collect or verify the full payment before marking this order as delivered.</div>
         @endif
-        @include('tenant.partials.validation-errors')
+        {{-- @include('tenant.partials.validation-errors') --}}
+        @if ($order->invoice_error)
+            <div class="alert alert-warning">{{ $order->invoice_error }}</div>
+        @endif
+        <div class="d-flex gap-2 mb-3">
+            @if (
+                $order->invoice &&
+                    app(\App\Repositories\TenantRoleRepository::class)->userHasPermission($tenantUser, 'invoices.view'))
+                <a class="btn btn-outline-primary" href="{{ route('tenant.invoices.show', $order->invoice) }}">Invoice
+                    {{ $order->invoice->number ?? 'draft' }}</a>
+            @elseif (
+                !$order->invoice &&
+                    in_array($order->status, ['pending', 'confirmed', 'processing']) &&
+                    app(\App\Repositories\TenantRoleRepository::class)->userHasPermission($tenantUser, 'invoices.create'))
+                <a class="btn btn-outline-primary"
+                    href="{{ route('tenant.invoices.create', ['order_id' => $order->id]) }}">Prepare invoice</a>
+            @endif
+            @if (in_array($order->status, ['confirmed', 'processing', 'shipped', 'delivered']) &&
+                    app(\App\Repositories\TenantRoleRepository::class)->userHasPermission($tenantUser, 'orders.approve_dispatch'))
+                <form method="POST" action="{{ route('tenant.orders.approve-dispatch', $order) }}">@csrf
+                    <button
+                        class="btn btn-primary">{{ $order->dispatch_approved_at ? 'Retry invoice issuance' : 'Approve dispatch and issue invoice' }}</button>
+                </form>
+            @endif
+        </div>
         @if ($order->coupon_code)
             <div class="alert alert-info">Coupon {{ $order->coupon_code }}: INR {{ $order->coupon_discount }} (included in
                 total discount).</div>
@@ -206,7 +230,7 @@
                     class="row g-2 mb-3">
                     @csrf
                     <div class="col-md-6"><label for="cod-reference" class="form-label">Collection receipt reference</label>
-                        <input id="cod-reference" name="reference_number" class="form-control" required maxlength="100">
+                        <input id="cod-reference" name="reference_number" class="form-control" maxlength="100">
                     </div>
                     <div class="col-md-6 align-self-end"><button class="btn btn-primary" type="submit">Mark COD collected:
                             {{ $summary['outstanding_amount'] }}</button></div>

@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\OrderPaymentWebhookController;
 use App\Http\Controllers\TenantCatalogController;
 use App\Http\Controllers\TenantCouponController;
+use App\Http\Controllers\TenantInvoiceController;
 use App\Http\Controllers\TenantPaymentController;
 use App\Http\Middleware\AuthenticateTenantToken;
 use App\Http\Middleware\ResolveTenant;
@@ -32,6 +33,14 @@ Route::controller(TenantAuthController::class)->group(function (): void {
 });
 
 Route::middleware(AuthenticateTenantToken::class)->group(function (): void {
+    Route::apiResource('tenant/invoices', TenantInvoiceController::class)->except('destroy')->names('api.tenant.invoices');
+    Route::controller(TenantInvoiceController::class)->group(function (): void {
+        Route::post('tenant/invoices/{invoice}/issue', 'issue')->whereNumber('invoice')->name('api.tenant.invoices.issue');
+        Route::get('tenant/invoices/{invoice}/pdf', 'pdf')->whereNumber('invoice')->name('api.tenant.invoices.pdf');
+    });
+
+
+    Route::post('tenant/orders/{order}/approve-dispatch', [TenantOrderController::class, 'approveDispatch'])->whereNumber('order')->name('api.tenant.orders.approve-dispatch');
     Route::patch('tenant/coupons/{coupon}/status', [TenantCouponController::class, 'status'])->name('api.tenant.coupons.status');
     Route::controller(TenantPaymentController::class)->group(function (): void {
         Route::get('tenant/payments/methods', 'methods')->name('api.tenant.payments.methods');
