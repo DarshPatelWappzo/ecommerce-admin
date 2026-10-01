@@ -32,6 +32,10 @@ class TenantProductService
                 $product = $id ? $this->products->find($id, true) : new Product;
                 $before = $id ? $product->toArray() : null;
                 $fields = Arr::only($data, ['name', 'slug', 'product_type', 'short_description', 'description', 'status', 'featured', 'meta_title', 'meta_description', 'tax_id', 'hsn_code']);
+                foreach (['is_returnable' => 'return_days', 'is_replaceable' => 'replacement_days'] as $flag => $days) {
+                    $fields[$flag] = (bool) ($data[$flag] ?? $product->$flag ?? false);
+                    $fields[$days] = $fields[$flag] ? ($data[$days] ?? $product->$days) : null;
+                }
                 if (empty($fields['slug'])) {
                     $fields['slug'] = $product->slug ?: $this->products->uniqueSlug($fields['name']);
                 }
@@ -44,7 +48,7 @@ class TenantProductService
                         $image = ! empty($row['id']) ? $product->images()->findOrFail($row['id']) : $product->images()->make();
                         $file = $row['file'] ?? null;
                         if ($file) {
-                            $path = $file->store('products/'.hash('sha256', (string) config('database.connections.tenant.database')).'/'.$product->id, 'public');
+                            $path = $file->store('products/' . hash('sha256', (string) config('database.connections.tenant.database')) . '/' . $product->id, 'public');
                             if (! $path) {
                                 throw new \RuntimeException('The product image could not be stored.');
                             }
@@ -94,7 +98,7 @@ class TenantProductService
     {
         DB::connection('tenant')->transaction(function () use ($id): void {
             $product = $this->products->find($id, true);
-            if ($product->variants()->orderBy('id')->lockForUpdate()->get()->contains(fn ($variant) => $variant->reserved_quantity > 0)) {
+            if ($product->variants()->orderBy('id')->lockForUpdate()->get()->contains(fn($variant) => $variant->reserved_quantity > 0)) {
                 throw ValidationException::withMessages(['product' => 'Products with reserved stock cannot be deleted.']);
             }
             $before = $product->toArray();

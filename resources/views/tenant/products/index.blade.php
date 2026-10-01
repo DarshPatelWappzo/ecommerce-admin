@@ -64,6 +64,7 @@
                             <th>Price from</th>
                             <th>Quantity</th>
                             <th>Status</th>
+                            <th>Return / Replacement</th>
                             <th>Created</th>
                             <th>Actions</th>
                         </tr>
@@ -92,6 +93,11 @@
                                 <td><span
                                         class="badge text-bg-{{ $product->status ? 'success' : 'secondary' }}">{{ $product->status ? 'Active' : 'Inactive' }}</span>
                                 </td>
+                                <td class="small text-nowrap">
+                                    <div>Return: {{ $product->is_returnable ? $product->return_days . ' Days' : 'No' }}</div>
+                                    <div>Replacement:
+                                        {{ $product->is_replaceable ? $product->replacement_days . ' Days' : 'No' }}</div>
+                                </td>
                                 <td>{{ $product->created_at->format('d M Y') }}</td>
                                 <td>
                                     @if ($canUpdate)
@@ -107,7 +113,7 @@
                                 </td>
                             </tr>
                         @empty<tr>
-                                <td colspan="9" class="text-center py-4">No products found.</td>
+                                <td colspan="10" class="text-center py-4">No products found.</td>
                             </tr>
                         @endforelse
                     </tbody>

@@ -35,7 +35,8 @@ class TenantProductSaveRequest extends TenantProductRequest
     public function rules(): array
     {
         $productId = $this->route('product');
-        $currentTaxId = $productId !== null ? Product::findOrFail($productId)->tax_id : null;
+        $product = $productId !== null ? Product::findOrFail($productId) : null;
+        $currentTaxId = $product?->tax_id;
         $rules = [
             'hsn_code' => ['nullable', 'string', 'max:20'],
             'tax_id' => ['nullable', 'integer', Rule::exists('tenant.taxes', 'id')->where(function (Builder $query) use ($currentTaxId): void {
@@ -94,6 +95,16 @@ class TenantProductSaveRequest extends TenantProductRequest
             'images.*.is_primary' => ['required', 'boolean'],
             'images.*.sort_order' => ['required', 'integer', 'min:0', 'max:2147483647'],
         ];
+
+        foreach (['is_returnable' => 'return_days', 'is_replaceable' => 'replacement_days'] as $flag => $days) {
+            $enabled = in_array($this->input($flag, $product?->$flag ?? false), [true, 1, '1'], true);
+            $rules[$flag] = ['sometimes', 'boolean'];
+            $rules[$days] = [
+                Rule::excludeIf(! $enabled),
+                Rule::requiredIf($enabled && ($this->has($flag) || $this->has($days))),
+                'nullable', 'integer', 'min:1', 'max:4294967295',
+            ];
+        }
 
         return $rules;
     }

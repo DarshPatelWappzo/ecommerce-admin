@@ -9,17 +9,25 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['name', 'slug', 'product_type', 'short_description', 'description', 'status', 'featured', 'meta_title', 'meta_description', 'tax_id', 'hsn_code'])]
+#[Fillable(['name', 'slug', 'product_type', 'short_description', 'description', 'status', 'featured', 'meta_title', 'meta_description', 'tax_id', 'hsn_code', 'is_returnable', 'is_replaceable', 'return_days', 'replacement_days'])]
 class Product extends TenantModel
 {
     use HasFactory;
     use SoftDeletes;
 
-    protected $attributes = ['status' => true, 'featured' => false];
+    protected $attributes = ['status' => true, 'featured' => false, 'is_returnable' => false, 'is_replaceable' => false];
 
     protected function casts(): array
     {
-        return ['status' => 'boolean', 'featured' => 'boolean', 'tax_id' => 'integer'];
+        return [
+            'status' => 'boolean',
+            'featured' => 'boolean',
+            'tax_id' => 'integer',
+            'is_returnable' => 'boolean',
+            'is_replaceable' => 'boolean',
+            'return_days' => 'integer',
+            'replacement_days' => 'integer',
+        ];
     }
 
     public function tax(): BelongsTo

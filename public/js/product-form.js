@@ -61,6 +61,23 @@
     const images = form.querySelector("[data-images]");
     let sequence = 0;
 
+    form.querySelectorAll("[data-product-policy]").forEach((section) => {
+        const toggle = section.querySelector("[data-policy-switch]");
+        const period = section.querySelector("[data-policy-period]");
+        const input = period.querySelector("input");
+        const syncPolicy = () => {
+            period.classList.toggle("d-none", !toggle.checked);
+            input.disabled = !toggle.checked;
+            input.required = toggle.checked;
+            if (!toggle.checked) {
+                input.value = "";
+                period.querySelector("[data-error-for]").textContent = "";
+            }
+        };
+        toggle.addEventListener("change", syncPolicy);
+        syncPolicy();
+    });
+
     function field(
         container,
         key,
@@ -429,6 +446,12 @@
             payload[key] = form.elements[key].value;
         });
         payload.featured = form.elements.featured.checked;
+        form.querySelectorAll("[data-product-policy]").forEach((section) => {
+            const toggle = section.querySelector("[data-policy-switch]");
+            const input = section.querySelector("[data-policy-period] input");
+            payload[toggle.name] = toggle.checked;
+            payload[input.name] = toggle.checked ? input.value || null : null;
+        });
         payload.hsn_code = form.elements.hsn_code.value || null;
         payload.tax_id =
             form.elements.tax_id.value === ""

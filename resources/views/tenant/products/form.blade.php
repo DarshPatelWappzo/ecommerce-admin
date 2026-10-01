@@ -62,6 +62,32 @@
                 </div>
             </section>
             <section class="dashboard-card mb-4">
+                <h2 class="section-title">Return &amp; Replacement Policy</h2>
+                <div class="row g-3">
+                    @foreach (['is_returnable' => ['Returnable', 'return_days', 'Return Period (Days)'], 'is_replaceable' => ['Replaceable', 'replacement_days', 'Replacement Period (Days)']] as $flag => [$label, $days, $periodLabel])
+                        @php($enabled = (bool) old($flag, $product?->$flag ?? false))
+                        <div class="col-md-6" data-product-policy>
+                            <div class="form-check form-switch mb-3">
+                                <input type="hidden" name="{{ $flag }}" value="0">
+                                <input class="form-check-input" type="checkbox" role="switch" id="{{ $flag }}"
+                                    name="{{ $flag }}" value="1" data-policy-switch
+                                    @checked($enabled)>
+                                <label class="form-check-label" for="{{ $flag }}">{{ $label }}</label>
+                            </div>
+                            <span class="field-error" data-error-for="{{ $flag }}"></span>
+                            <div data-policy-period @class(['d-none' => !$enabled])>
+                                <label class="form-label" for="{{ $days }}">{{ $periodLabel }}</label>
+                                <input class="form-control" type="number" min="1" max="4294967295" step="1"
+                                    id="{{ $days }}" name="{{ $days }}" placeholder="7"
+                                    value="{{ $enabled ? old($days, $product?->$days) : '' }}"
+                                    @disabled(!$enabled) @required($enabled)>
+                                <span class="field-error" data-error-for="{{ $days }}"></span>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </section>
+            <section class="dashboard-card mb-4">
                 <h2 class="section-title">Organization</h2>
                 <div class="row g-3">
                     @foreach (['categories' => 'category_ids', 'tags' => 'tag_ids', 'related_products' => 'related_product_ids'] as $key => $field)
