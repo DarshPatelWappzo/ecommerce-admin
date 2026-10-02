@@ -7,6 +7,7 @@ use App\Models\UserDomain;
 use App\Services\TenantConnectionManager;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -16,13 +17,15 @@ class ResolveTenant
     public function __construct(private readonly TenantConnectionManager $connectionManager) {}
 
     /**
-     * Handle an incoming request.
+     * Resolve the session tenant before the guard retrieves the authenticated user.
      *
      * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $sessionBound = $request->routeIs('tenant.orders.*', 'tenant.payments.*');
+        $sessionBound = $request->routeIs('tenant.*')
+            && (! $request->routeIs('tenant.login.store')
+                || ($request->hasSession() && $request->session()->has(Auth::guard('tenant')->getName())));
         $domainName = Str::of((string) ($sessionBound
             ? ($request->hasSession() ? $request->session()->get('tenant_domain') : null)
             : ($request->header('X-Tenant-Domain')
@@ -48,7 +51,7 @@ class ResolveTenant
             throw new NotFoundHttpException('Tenant not found.');
         }
 
-        if ($request->hasSession()) {
+        if ($request->hasSession() && ! $sessionBound) {
             $request->session()->put('tenant_domain', $domainName);
         }
         $request->attributes->set('tenant_database', $tenantDatabase);

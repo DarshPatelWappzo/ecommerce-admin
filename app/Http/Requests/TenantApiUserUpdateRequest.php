@@ -16,8 +16,10 @@ class TenantApiUserUpdateRequest extends TenantUserUpdateRequest
         $user = $this->user('sanctum');
         $roleRepository = app(TenantRoleRepository::class);
 
-        if (! $user instanceof User || $user->status !== 'active'
-            || ! $roleRepository->userHasPermission($user, 'users.update')) {
+        if (
+            ! $user instanceof User || $user->status !== 'active'
+            || ! $roleRepository->userHasPermission($user, 'users.update')
+        ) {
             throw new HttpResponseException(response()->json([
                 'message' => 'You need users.update permission to update users.',
                 'error_code' => 403,
@@ -27,6 +29,13 @@ class TenantApiUserUpdateRequest extends TenantUserUpdateRequest
         if ($user->is_first_login) {
             throw new HttpResponseException(response()->json([
                 'message' => 'Please change your password before updating users.',
+                'error_code' => 403,
+            ], 403));
+        }
+
+        if (! $roleRepository->userHasPermission($user, 'roles.update')) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'You need roles.update permission to update user roles.',
                 'error_code' => 403,
             ], 403));
         }

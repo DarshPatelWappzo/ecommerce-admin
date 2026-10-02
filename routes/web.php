@@ -18,6 +18,7 @@ use App\Http\Controllers\TenantProductController;
 use App\Http\Controllers\TenantRoleController;
 use App\Http\Controllers\TenantTaxController;
 use App\Http\Controllers\TenantUserController;
+use App\Http\Middleware\EnsureActiveTenantUser;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\RequireTenantPasswordChange;
 use App\Http\Middleware\ResolveTenant;
@@ -33,7 +34,7 @@ Route::prefix('tenant')->name('tenant.')->group(function (): void {
         ->middleware(ResolveTenant::class)
         ->name('login.store');
 
-    Route::middleware([ResolveTenant::class, 'auth:tenant'])->group(function (): void {
+    Route::middleware([ResolveTenant::class, 'auth:tenant', EnsureActiveTenantUser::class])->group(function (): void {
         Route::get('/change-password', [TenantAuthController::class, 'passwordForm'])->name('password.form');
         Route::post('/change-password', [TenantAuthController::class, 'changePassword'])->name('password.change');
         Route::post('/logout', [TenantAuthController::class, 'logout'])->name('logout');

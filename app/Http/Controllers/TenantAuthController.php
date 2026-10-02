@@ -63,7 +63,7 @@ class TenantAuthController extends Controller
      */
     public function login(TenantLoginRequest $request): RedirectResponse|JsonResponse
     {
-        if (! Auth::guard('tenant')->attempt($request->safe()->only(['email', 'password']))) {
+        if (! Auth::guard('tenant')->attempt($request->safe()->only(['email', 'password']) + ['status' => 'active'])) {
             return back()->withErrors(['email' => 'The provided credentials are incorrect.'])->onlyInput('domain', 'email');
         }
 

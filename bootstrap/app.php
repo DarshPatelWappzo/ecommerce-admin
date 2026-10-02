@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AuthenticateTenantToken;
+use App\Http\Middleware\EnsureActiveTenantUser;
 use App\Http\Middleware\ResolveTenant;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
@@ -25,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
             fn(Request $request): string => $request->is('tenant/*') ? '/tenant/login' : '/super-admin/login',
         );
         $middleware->prependToPriorityList(AuthenticatesRequests::class, ResolveTenant::class);
+        $middleware->appendToPriorityList(AuthenticatesRequests::class, EnsureActiveTenantUser::class);
         $middleware->prependToPriorityList(SubstituteBindings::class, AuthenticateTenantToken::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
