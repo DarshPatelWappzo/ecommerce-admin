@@ -7,11 +7,11 @@
     <div class="alert alert-danger d-none" data-form-error role="alert"></div>
 
     <input name="sort_order" type="hidden" value="{{ old('sort_order', $package?->sort_order ?? 0) }}">
-    <small class="field-error" data-error-for="sort_order">
+    <span class="field-error" data-error-for="sort_order">
         @error('sort_order')
             {{ $message }}
         @enderror
-    </small>
+    </span>
 
     <div class="row g-4">
         @foreach (['name' => 'Package name', 'slug' => 'Slug', 'infrastructure_summary' => 'Infrastructure summary'] as $field => $label)
@@ -23,11 +23,11 @@
                     <input class="form-control" id="{{ $field }}" name="{{ $field }}" type="text"
                         value="{{ old($field, $package?->{$field}) }}" @readonly($field === 'slug')>
                 @endif
-                <small class="field-error" data-error-for="{{ $field }}">
+                <span class="field-error" data-error-for="{{ $field }}">
                     @error($field)
                         {{ $message }}
                     @enderror
-                </small>
+                </span>
             </div>
         @endforeach
         @foreach (['min_monthly_users' => 'Min monthly users', 'max_monthly_users' => 'Max monthly users', 'min_monthly_cost' => 'Min monthly cost', 'max_monthly_cost' => 'Max monthly cost', 'application_servers' => 'Application servers'] as $field => $label)
@@ -35,11 +35,11 @@
                 <label class="form-label" for="{{ $field }}">{{ $label }}</label>
                 <input class="form-control" id="{{ $field }}" name="{{ $field }}" type="text"
                     min="0" step="0.01" value="{{ old($field, $package?->{$field}) }}">
-                <small class="field-error" data-error-for="{{ $field }}">
+                <span class="field-error" data-error-for="{{ $field }}">
                     @error($field)
                         {{ $message }}
                     @enderror
-                </small>
+                </span>
             </div>
         @endforeach
         @foreach (['cpu_vcores' => 'CPU vCores', 'ram_gb' => 'RAM (GB)', 'bandwidth_gb' => 'Bandwidth (GB)', 'storage_gb' => 'Storage (GB)'] as $field => $label)
@@ -47,11 +47,11 @@
                 <label class="form-label" for="{{ $field }}">{{ $label }}</label>
                 <input class="form-control" id="{{ $field }}" name="{{ $field }}" type="text"
                     min="0" step="0.01" value="{{ old($field, $package?->{$field}) }}">
-                <small class="field-error" data-error-for="{{ $field }}">
+                <span class="field-error" data-error-for="{{ $field }}">
                     @error($field)
                         {{ $message }}
                     @enderror
-                </small>
+                </span>
             </div>
         @endforeach
         <div class="col-md-4">
@@ -60,21 +60,21 @@
                 <option value="monthly" @selected(old('billing_period', $package?->billing_period ?? 'monthly') === 'monthly')>Monthly</option>
                 <option value="yearly" @selected(old('billing_period', $package?->billing_period) === 'yearly')>Yearly</option>
             </select>
-            <small class="field-error" data-error-for="billing_period">
+            <span class="field-error" data-error-for="billing_period">
                 @error('billing_period')
                     {{ $message }}
                 @enderror
-            </small>
+            </span>
         </div>
         <div class="col-md-4">
             <label class="form-label" for="currency">Currency</label>
             <input class="form-control" id="currency" name="currency" type="text" maxlength="3"
                 value="{{ old('currency', $package?->currency ?? 'INR') }}">
-            <small class="field-error" data-error-for="currency">
+            <span class="field-error" data-error-for="currency">
                 @error('currency')
                     {{ $message }}
                 @enderror
-            </small>
+            </span>
         </div>
         <div class="col-md-4">
             <label class="form-label" for="status">Status</label>
@@ -82,11 +82,11 @@
                 <option value="active" @selected(old('status', $package?->status ?? 'active') === 'active')>Active</option>
                 <option value="inactive" @selected(old('status', $package?->status) === 'inactive')>Inactive</option>
             </select>
-            <small class="field-error" data-error-for="status">
+            <span class="field-error" data-error-for="status">
                 @error('status')
                     {{ $message }}
                 @enderror
-            </small>
+            </span>
         </div>
         <div class="col-md-6">
             <label class="form-label" for="database_type">Database type</label>

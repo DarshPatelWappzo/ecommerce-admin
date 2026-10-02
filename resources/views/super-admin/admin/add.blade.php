@@ -22,41 +22,39 @@
                         <label class="form-label" for="first_name">First name</label>
                         <input class="form-control" id="first_name" name="first_name" type="text"
                             value="{{ old('first_name') }}">
-                        <small class="field-error" data-error-for="first_name">
-                            @error('first_name')
-                                {{ $message }}
-                            @enderror
-                        </small>
+                        <span class="field-error" data-error-for="first_name">
+
+                        </span>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" for="last_name">Last name</label>
                         <input class="form-control" id="last_name" name="last_name" type="text"
                             value="{{ old('last_name') }}">
-                        <small class="field-error" data-error-for="last_name">
+                        <span class="field-error" data-error-for="last_name">
                             @error('last_name')
                                 {{ $message }}
                             @enderror
-                        </small>
+                        </span>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" for="email">Email address</label>
                         <input class="form-control" id="email" name="email" type="text"
                             value="{{ old('email') }}">
-                        <small class="field-error" data-error-for="email">
+                        <span class="field-error" data-error-for="email">
                             @error('email')
                                 {{ $message }}
                             @enderror
-                        </small>
+                        </span>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" for="mobile_number">Mobile number</label>
                         <input class="form-control" id="mobile_number" name="mobile_number" type="tel"
                             value="{{ old('mobile_number') }}">
-                        <small class="field-error" data-error-for="mobile_number">
+                        <span class="field-error" data-error-for="mobile_number">
                             @error('mobile_number')
                                 {{ $message }}
                             @enderror
-                        </small>
+                        </span>
                     </div>
                     @include('super-admin.admin._domain-fields', ['domains' => $domains])
                     <div class="col-md-6">
@@ -66,11 +64,11 @@
                             <option value="active" @selected(old('status') === 'active')>Active</option>
                             <option value="inactive" @selected(old('status') === 'inactive')>Inactive</option>
                         </select>
-                        <small class="field-error" data-error-for="status">
+                        <span class="field-error" data-error-for="status">
                             @error('status')
                                 {{ $message }}
                             @enderror
-                        </small>
+                        </span>
                     </div>
                 </div>
 

@@ -13,6 +13,12 @@ use Illuminate\Validation\Rule;
 
 class AuditLogController extends Controller
 {
+    /**
+     * List the resource records.
+     *
+     * @param  Request  $request  The incoming request.
+     * @return View The response for this action.
+     */
     public function index(Request $request): View
     {
         $filters = $request->validate([
@@ -44,7 +50,7 @@ class AuditLogController extends Controller
                 $query->whereDate('created_at', $date);
             })
             ->latest()
-            ->paginate(20)
+            ->paginate(10)
             ->withQueryString();
 
         $users = User::query()
@@ -52,10 +58,11 @@ class AuditLogController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('super-admin.audit-logs.index', [
-            'auditLogs' => $auditLogs,
-            'users' => $users,
-            'filters' => $filters,
-        ]);
+        $data = [];
+        $data['auditLogs'] = $auditLogs;
+        $data['users'] = $users;
+        $data['filters'] = $filters;
+
+        return view('super-admin.audit-logs.index', $data);
     }
 }

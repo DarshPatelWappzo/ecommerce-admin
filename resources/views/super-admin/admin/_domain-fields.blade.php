@@ -16,19 +16,19 @@
                         <span class="visually-hidden">Remove domain</span>
                     </button>
                 </div>
-                <small class="field-error" data-error-for="domains.{{ $index }}">
+                <span class="field-error" data-error-for="domains.{{ $index }}">
                     @error('domains.' . $index)
                         {{ $message }}
                     @enderror
-                </small>
+                </span>
             </div>
         @endforeach
     </div>
-    <small class="field-error" data-error-for="domains">
+    <span class="field-error" data-error-for="domains">
         @error('domains')
             {{ $message }}
         @enderror
-    </small>
+    </span>
 </div>
 
 @once

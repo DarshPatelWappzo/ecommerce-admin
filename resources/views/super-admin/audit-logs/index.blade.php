@@ -11,7 +11,7 @@
             </div>
         </div>
 
-        <div class="dashboard-card p-0 overflow-hidden">
+        <div class="dashboard-card p-0 overflow-hidden" data-ajax-pagination-container>
             <div class="table-responsive">
                 <table class="table user-table align-middle mb-0">
                     <thead>
@@ -28,16 +28,22 @@
                             <tr>
                                 <td>{{ $auditLogs->firstItem() + $loop->index }}</td>
                                 <td>{{ Illuminate\Support\Str::headline($auditLog->module) }}</td>
-                                <td><span class="badge rounded-pill text-bg-{{ $auditLog->action === 'created' ? 'success' : ($auditLog->action === 'deleted' ? 'danger' : 'primary') }}">{{ $auditLog->action === 'created' ? 'Add' : ucfirst($auditLog->action) }}</span></td>
+                                <td><span
+                                        class="badge rounded-pill text-bg-{{ $auditLog->action === 'created' ? 'success' : ($auditLog->action === 'deleted' ? 'danger' : 'primary') }}">{{ $auditLog->action === 'created' ? 'Add' : ucfirst($auditLog->action) }}</span>
+                                </td>
                                 <td>{{ $auditLog->created_at?->format('d M Y, h:i A') }}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#audit-log-{{ $auditLog->id }}" type="button" aria-label="View audit changes">
+                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                        data-bs-target="#audit-log-{{ $auditLog->id }}" type="button"
+                                        aria-label="View audit changes">
                                         <i class="fa-solid fa-eye" aria-hidden="true"></i>
                                     </button>
                                 </td>
                             </tr>
                         @empty
-                            <tr><td class="py-5 text-center text-secondary" colspan="5">No audit logs found.</td></tr>
+                            <tr>
+                                <td class="py-5 text-center text-secondary" colspan="5">No audit logs found.</td>
+                            </tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -53,3 +59,7 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    <script src="{{ asset('js/ajax-pagination.js') }}"></script>
+@endpush

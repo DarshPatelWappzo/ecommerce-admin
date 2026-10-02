@@ -8,7 +8,9 @@ use Illuminate\Http\Request;
 class UserDomainController extends Controller
 {
     /**
-     * Display a listing of user domains.
+     * Placeholder for the index action; no behavior is implemented yet.
+     *
+     * @return void No return value.
      */
     public function index()
     {
@@ -16,7 +18,9 @@ class UserDomainController extends Controller
     }
 
     /**
-     * Show the form for creating a user domain.
+     * Placeholder for the create action; no behavior is implemented yet.
+     *
+     * @return void No return value.
      */
     public function create()
     {
@@ -24,7 +28,10 @@ class UserDomainController extends Controller
     }
 
     /**
-     * Store a new user domain.
+     * Placeholder for the store action; no behavior is implemented yet.
+     *
+     * @param  Request  $request  The incoming request.
+     * @return void No return value.
      */
     public function store(Request $request)
     {
@@ -32,7 +39,10 @@ class UserDomainController extends Controller
     }
 
     /**
-     * Display a user domain.
+     * Placeholder for the show action; no behavior is implemented yet.
+     *
+     * @param  string  $id  The id used by this action.
+     * @return void No return value.
      */
     public function show(string $id)
     {
@@ -40,7 +50,10 @@ class UserDomainController extends Controller
     }
 
     /**
-     * Show the form for editing a user domain.
+     * Placeholder for the edit action; no behavior is implemented yet.
+     *
+     * @param  string  $id  The id used by this action.
+     * @return void No return value.
      */
     public function edit(string $id)
     {
@@ -48,7 +61,11 @@ class UserDomainController extends Controller
     }
 
     /**
-     * Update a user domain.
+     * Placeholder for the update action; no behavior is implemented yet.
+     *
+     * @param  Request  $request  The incoming request.
+     * @param  string  $id  The id used by this action.
+     * @return void No return value.
      */
     public function update(Request $request, string $id)
     {
@@ -56,7 +73,10 @@ class UserDomainController extends Controller
     }
 
     /**
-     * Delete a user domain.
+     * Placeholder for the destroy action; no behavior is implemented yet.
+     *
+     * @param  string  $id  The id used by this action.
+     * @return void No return value.
      */
     public function destroy(string $id)
     {

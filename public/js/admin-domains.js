@@ -28,7 +28,7 @@
                         <span class="visually-hidden">Remove domain</span>
                     </button>
                 </div>
-                <small class="field-error" data-error-for="domains.${index}"></small>
+                <span class="field-error" data-error-for="domains.${index}"></span>
             `;
 
             fields.append(row);

@@ -4,7 +4,7 @@
 
 This application is a Laravel 13.29 administration panel for a software/e-commerce platform. It currently provides a super-admin area for managing regular users, their domains, infrastructure packages, and historical audit records.
 
-The application uses PHP 8.3, Eloquent ORM, Blade templates, Bootstrap 5, and SQLite by default. MySQL is also supported; the jobs migration uses 100-character `connection` and `queue` columns to keep the `failed_jobs` composite index within MySQL's 1000-byte key limit.
+The application uses PHP 8.3, Eloquent ORM, Blade templates, Bootstrap 5, and SQLite by default. Tenant provisioning uses MySQL databases generated per central domain as `tenant_{centralUserId}_{domainId}`. Tenant users are separate from central users, receive the Admin role, and must change their temporary password on first login.
 
 
 ## Authentication and authorization

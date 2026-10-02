@@ -13,6 +13,8 @@ class AuthController extends Controller
 {
     /**
      * Show the super-admin login form or redirect an authenticated super-admin.
+     *
+     * @return View|RedirectResponse The response for this action.
      */
     public function create(): View|RedirectResponse
     {
@@ -25,6 +27,9 @@ class AuthController extends Controller
 
     /**
      * Authenticate a super-admin and start a new session.
+     *
+     * @param  SuperAdminLoginRequest  $request  The incoming request.
+     * @return RedirectResponse The response for this action.
      */
     public function store(SuperAdminLoginRequest $request): RedirectResponse
     {
@@ -43,6 +48,9 @@ class AuthController extends Controller
 
     /**
      * Log out the current super-admin and invalidate the session.
+     *
+     * @param  Request  $request  The incoming request.
+     * @return RedirectResponse The response for this action.
      */
     public function destroy(Request $request): RedirectResponse
     {
