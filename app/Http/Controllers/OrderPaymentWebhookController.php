@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Tenant\OrderPayment;
 use App\Models\Tenant\OrderPaymentCheckout;
 use App\Models\TenantDatabase;
 use App\Services\OrderPaymentGateway;
 use App\Services\OrderPaymentGatewayException;
+use App\Services\RazorpayRefundGateway;
 use App\Services\TenantConnectionManager;
 use App\Services\TenantPaymentService;
+use App\Services\TenantRefundService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -44,6 +47,9 @@ class OrderPaymentWebhookController extends Controller
         Validator::make(is_array($input) ? $input : [], [
             'event' => ['required', 'string'],
         ])->validate();
+        if (in_array($input['event'], ['refund.created', 'refund.processed', 'refund.failed'], true)) {
+            return $this->refund($input);
+        }
         if (! in_array($input['event'], ['payment.captured', 'payment.authorized', 'payment.failed', 'order.paid'], true)) {
             $data = ['message' => 'Event ignored.'];
 
@@ -88,6 +94,52 @@ class OrderPaymentWebhookController extends Controller
             $this->connections->disconnect();
         }
         $data = ['message' => 'Webhook processed.'];
+
+        return response()->json($data);
+    }
+
+    /**
+     * Route a verified refund event using provider-fetched payment and order metadata.
+     *
+     * @param  array<string, mixed>  $input  Signature-verified event payload.
+     * @return JsonResponse Acknowledgement after the tenant financial transaction commits.
+     */
+    private function refund(array $input): JsonResponse
+    {
+        Validator::make($input, ['payload.refund.entity.id' => ['required', 'string', 'max:100', 'regex:/^rfnd_[A-Za-z0-9]+$/']])->validate();
+        $gateway = app(RazorpayRefundGateway::class);
+        $entity = $gateway->fetchRefund(data_get($input, 'payload.refund.entity.id'));
+        if (($entity['id'] ?? null) !== data_get($input, 'payload.refund.entity.id')) {
+            throw new OrderPaymentGatewayException;
+        }
+        $payment = $this->gateway->fetchPayment($entity['payment_id'] ?? '');
+        if (($payment['id'] ?? null) !== ($entity['payment_id'] ?? null)) {
+            throw new OrderPaymentGatewayException;
+        }
+        $providerOrder = $this->gateway->fetchOrder($payment['order_id'] ?? '');
+        if (($providerOrder['id'] ?? null) !== ($payment['order_id'] ?? null)) {
+            throw new OrderPaymentGatewayException;
+        }
+        if (data_get($providerOrder, 'notes.purpose') !== 'tenant_order') {
+            $data = ['message' => 'Event ignored.'];
+
+            return response()->json($data);
+        }
+        $tenant = TenantDatabase::with('domain')->find(data_get($providerOrder, 'notes.tenant_database_id'));
+        if (! $tenant || $tenant->status !== 'active' || ! $tenant->domain) {
+            throw new OrderPaymentGatewayException;
+        }
+        try {
+            $this->connections->connect($tenant);
+            $localPayment = OrderPayment::where('gateway', 'razorpay')->where('gateway_payment_id', $payment['id'])->where('gateway_order_id', $providerOrder['id'])->first();
+            if (! $localPayment) {
+                throw new OrderPaymentGatewayException;
+            }
+            app(TenantRefundService::class)->webhook($entity);
+        } finally {
+            $this->connections->disconnect();
+        }
+        $data = ['message' => 'Refund webhook processed.'];
 
         return response()->json($data);
     }

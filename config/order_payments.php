@@ -10,6 +10,6 @@ return [
     'razorpay' => [
         'key_id' => env('ORDER_RAZORPAY_KEY_ID'),
         'key_secret' => env('ORDER_RAZORPAY_KEY_SECRET'),
-        // 'webhook_secret' => env('ORDER_RAZORPAY_WEBHOOK_SECRET'),
+        'webhook_secret' => env('RAZORPAY_WEBHOOK_SECRET') ?: env('ORDER_RAZORPAY_WEBHOOK_SECRET'),
     ],
 ];

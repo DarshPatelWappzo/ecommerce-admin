@@ -72,6 +72,13 @@
                         aria-hidden="true"></i><span>Orders</span></a>
             @endif
             @if (auth('tenant')->user()?->status === 'active' &&
+                    app(\App\Repositories\TenantRoleRepository::class)->userHasPermission(auth('tenant')->user(), 'returns.view'))
+                <a class="sidebar-link {{ request()->routeIs('tenant.returns.*') ? 'active' : '' }}"
+                    href="{{ route('tenant.returns.index') }}" data-tooltip="Returns">
+                    <i class="fa-solid fa-rotate-left" aria-hidden="true"></i><span>Returns</span>
+                </a>
+            @endif
+            @if (auth('tenant')->user()?->status === 'active' &&
                     app(\App\Repositories\TenantRoleRepository::class)->userHasPermission(auth('tenant')->user(), 'payments.view'))
                 <a class="sidebar-link {{ request()->routeIs('tenant.payments.*') ? 'active' : '' }}"
                     href="{{ route('tenant.payments.index') }}" data-tooltip="Payments">

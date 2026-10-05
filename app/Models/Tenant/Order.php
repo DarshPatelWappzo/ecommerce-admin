@@ -22,6 +22,11 @@ class Order extends TenantModel
         return $this->hasMany(OrderItem::class);
     }
 
+    public function returns(): HasMany
+    {
+        return $this->hasMany(ReturnRequest::class);
+    }
+
     public function addresses(): HasMany
     {
         return $this->hasMany(OrderAddress::class);

@@ -20,7 +20,7 @@ class RazorpayOrderGateway implements OrderPaymentGateway
         return (string) config('order_payments.razorpay.key_id');
     }
 
-    private function api(): Api
+    protected function api(): Api
     {
         if (! $this->publicKey() || ! config('order_payments.razorpay.key_secret')) {
             throw new OrderPaymentGatewayException;
@@ -123,7 +123,7 @@ class RazorpayOrderGateway implements OrderPaymentGateway
         }
     }
 
-    private function call(callable $operation): array
+    protected function call(callable $operation): array
     {
         try {
             return $operation();

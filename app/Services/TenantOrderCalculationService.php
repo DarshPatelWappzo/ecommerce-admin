@@ -78,6 +78,10 @@ class TenantOrderCalculationService
             }
             $items[] = [
                 'product_id' => $product->id,
+                'is_returnable' => $product->is_returnable,
+                'return_days' => $product->return_days,
+                'is_replaceable' => $product->is_replaceable,
+                'replacement_days' => $product->replacement_days,
                 'product_variant_id' => $variant->id,
                 'product_name' => $product->name,
                 'variant_name' => $variant->attributeValues->map(fn($value) => $value->option?->label)->filter()->implode(' / ') ?: null,

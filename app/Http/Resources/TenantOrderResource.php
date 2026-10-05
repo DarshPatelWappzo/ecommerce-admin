@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Models\Tenant\User;
 use App\Repositories\TenantRoleRepository;
 use App\Services\TenantOrderCalculationService;
+use App\Services\TenantReturnEligibilityService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -18,6 +19,26 @@ class TenantOrderResource extends JsonResource
         $data['invoice_error'] = $this->invoice_error;
         foreach (['items', 'addresses', 'payments', 'shipment', 'histories'] as $relation) {
             $data[$relation] = $this->whenLoaded($relation);
+        }
+        if ($this->resource->relationLoaded('items')) {
+            $data['items'] = $this->items->map(function ($item): array {
+                $item->setRelation('order', $this->resource);
+
+                return [...$item->attributesToArray(), 'return' => app(TenantReturnEligibilityService::class)->check($item)];
+            });
+        }
+        if ($this->resource->relationLoaded('returns')) {
+            $returned = $this->returns->whereIn('status', ['inspection_passed', 'refund_pending', 'refund_processing', 'refund_failed', 'refunded'])->sum('quantity');
+            $returned += $this->returns->where('status', 'closed')->where('inventory_disposition', '!=', 'inspection_failed')->sum('quantity');
+            $data['return_status'] = $returned === 0 ? 'none' : ($returned >= $this->items->sum('quantity') ? 'returned' : 'partially_returned');
+            $refunded = TenantOrderCalculationService::money('0');
+            foreach ($this->returns as $return) {
+                if ($return->refund?->status === 'processed') {
+                    $refunded = $refunded->plus($return->refund->amount);
+                }
+            }
+            $data['refunded_amount'] = (string) $refunded;
+            $data['refund_status'] = $refunded->isZero() ? 'none' : ($refunded->isEqualTo($this->grand_total) ? 'refunded' : 'partially_refunded');
         }
         $actor = $request->user($request->is('api/*') ? 'sanctum' : 'tenant');
         if ($actor instanceof User && app(TenantRoleRepository::class)->userHasPermission($actor, 'invoices.view')) {

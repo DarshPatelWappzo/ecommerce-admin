@@ -15,6 +15,7 @@ use App\Http\Controllers\TenantInvoiceController;
 use App\Http\Controllers\TenantOrderController;
 use App\Http\Controllers\TenantPaymentController;
 use App\Http\Controllers\TenantProductController;
+use App\Http\Controllers\TenantReturnController;
 use App\Http\Controllers\TenantRoleController;
 use App\Http\Controllers\TenantTaxController;
 use App\Http\Controllers\TenantUserController;
@@ -44,6 +45,17 @@ Route::prefix('tenant')->name('tenant.')->group(function (): void {
             ->name('dashboard');
 
         Route::middleware(RequireTenantPasswordChange::class)->group(function (): void {
+            Route::prefix('returns')->name('returns.')->controller(TenantReturnController::class)->group(function (): void {
+                Route::get('/', 'index')->name('index');
+                Route::get('/reasons', 'reasons')->name('reasons');
+                Route::post('/reasons', 'saveReason')->name('reasons.save');
+                Route::get('/{return}', 'show')->whereNumber('return')->name('show');
+                Route::post('/{return}/transition', 'transition')->whereNumber('return')->name('transition');
+                Route::post('/{return}/refund', 'initiate')->whereNumber('return')->name('initiate');
+                Route::post('/{return}/refund/retry', 'retry')->whereNumber('return')->name('retry');
+                Route::post('/{return}/refund/reconcile', 'reconcile')->whereNumber('return')->middleware('throttle:10,1')->name('reconcile');
+                Route::post('/{return}/refund/manual', 'manual')->whereNumber('return')->name('manual');
+            });
             Route::resource('invoices', TenantInvoiceController::class)->except('destroy');
             Route::post('invoices/{invoice}/issue', [TenantInvoiceController::class, 'issue'])->whereNumber('invoice')->name('invoices.issue');
             Route::get('invoices/{invoice}/pdf', [TenantInvoiceController::class, 'pdf'])->whereNumber('invoice')->name('invoices.pdf');

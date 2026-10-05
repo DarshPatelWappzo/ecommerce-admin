@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AuditLog;
+use App\Models\Tenant\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -21,7 +22,7 @@ class AuditLogService
         $log = new AuditLog;
         $log->setConnection($model->getConnectionName());
         $log->fill([
-            'user_id' => $user?->getAuthIdentifier(),
+            'user_id' => $user instanceof User ? $user->getAuthIdentifier() : null,
             'action' => $action,
             'module' => $model->auditModule(),
             'auditable_type' => $model::class,

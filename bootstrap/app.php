@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AuthenticateCustomerToken;
 use App\Http\Middleware\AuthenticateTenantToken;
 use App\Http\Middleware\EnsureActiveTenantUser;
 use App\Http\Middleware\ResolveTenant;
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(AuthenticatesRequests::class, ResolveTenant::class);
         $middleware->appendToPriorityList(AuthenticatesRequests::class, EnsureActiveTenantUser::class);
         $middleware->prependToPriorityList(SubstituteBindings::class, AuthenticateTenantToken::class);
+        $middleware->prependToPriorityList(SubstituteBindings::class, AuthenticateCustomerToken::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (Throwable $exception, Request $request): ?JsonResponse {
