@@ -23,10 +23,12 @@
             <a class="sidebar-link {{ request()->routeIs('super-admin.admin.*') ? 'active' : '' }}"
                 href="{{ route('super-admin.admin.index') }}" data-tooltip="Users"><i class="fa-solid fa-users"
                     aria-hidden="true"></i><span>Users</span></a>
-            <a class="sidebar-link {{ request()->routeIs('super-admin.package.*') ? 'active' : '' }}" href="{{ route('super-admin.package.index') }}" data-tooltip="Packages"><i class="fa-solid fa-box-open"
+            <a class="sidebar-link {{ request()->routeIs('super-admin.package.*') ? 'active' : '' }}"
+                href="{{ route('super-admin.package.index') }}" data-tooltip="Packages"><i class="fa-solid fa-box-open"
                     aria-hidden="true"></i><span>Packages</span></a>
-            <a class="sidebar-link {{ request()->routeIs('super-admin.audit-logs.*') ? 'active' : '' }}" href="{{ route('super-admin.audit-logs.index') }}" data-tooltip="Audit logs"><i class="fa-solid fa-clipboard-list"
-                    aria-hidden="true"></i><span>Audit logs</span></a>
+            <a class="sidebar-link {{ request()->routeIs('super-admin.audit-logs.*') ? 'active' : '' }}"
+                href="{{ route('super-admin.audit-logs.index') }}" data-tooltip="Audit logs"><i
+                    class="fa-solid fa-clipboard-list" aria-hidden="true"></i><span>Audit logs</span></a>
         </nav>
     </div>
 </aside>

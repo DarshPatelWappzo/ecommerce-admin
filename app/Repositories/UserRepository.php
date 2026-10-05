@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class UserRepository
 {
@@ -45,6 +46,10 @@ class UserRepository
     {
         return User::query()
             ->where('is_super_admin', false)
+            ->with(['tenantDatabases' => function (HasMany $query): void {
+                $query->select(['id', 'user_id', 'domain_id', 'database_name', 'status', 'provisioned_at'])
+                    ->whereHas('domain');
+            }])
             ->when($search !== null && $search !== '', function (Builder $query) use ($search): void {
                 $query->where(function (Builder $query) use ($search): void {
                     $query->where('name', 'like', "%{$search}%")

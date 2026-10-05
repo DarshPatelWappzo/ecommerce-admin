@@ -3,12 +3,36 @@
 namespace App\Services;
 
 use App\Models\AuditLog;
+use App\Models\Tenant\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 class AuditLogService
 {
+    /**
+     * Record a multi-table change on the same connection as the affected model.
+     *
+     * @param  array<string, mixed>|null  $oldValues  The previous aggregate state.
+     * @param  array<string, mixed>|null  $newValues  The saved aggregate state.
+     */
+    public function recordSnapshot(Model $model, string $action, ?array $oldValues, ?array $newValues): void
+    {
+        $user = Auth::guard('tenant')->user() ?? Auth::guard('sanctum')->user();
+        $log = new AuditLog;
+        $log->setConnection($model->getConnectionName());
+        $log->fill([
+            'user_id' => $user instanceof User ? $user->getAuthIdentifier() : null,
+            'action' => $action,
+            'module' => $model->auditModule(),
+            'auditable_type' => $model::class,
+            'auditable_id' => $model->getKey(),
+            'old_values' => $oldValues,
+            'new_values' => $newValues,
+            'description' => Str::headline(class_basename($model)) . ' ' . $action,
+        ])->save();
+    }
+
     /**
      * @var list<string>
      */
@@ -66,7 +90,7 @@ class AuditLogService
             'auditable_id' => $model->getKey(),
             'old_values' => $oldValues,
             'new_values' => $newValues,
-            'description' => Str::headline(class_basename($model)).' '.$action,
+            'description' => Str::headline(class_basename($model)) . ' ' . $action,
         ]);
     }
 
