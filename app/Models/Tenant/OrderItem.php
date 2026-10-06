@@ -24,6 +24,11 @@ class OrderItem extends TenantModel
         return $this->hasMany(ReturnRequest::class);
     }
 
+    public function replacements(): HasMany
+    {
+        return $this->hasMany(ReplacementRequest::class);
+    }
+
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class)->withTrashed();

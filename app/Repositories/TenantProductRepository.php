@@ -36,7 +36,7 @@ class TenantProductRepository
      */
     public function find(int $id, bool $lock = false): Product
     {
-        return Product::with(self::RELATIONS)->when($lock, fn (Builder $query) => $query->lockForUpdate())->findOrFail($id);
+        return Product::with(self::RELATIONS)->when($lock, fn(Builder $query) => $query->lockForUpdate())->findOrFail($id);
     }
 
     /**
@@ -50,12 +50,12 @@ class TenantProductRepository
         $query = Product::with(self::RELATIONS)->withMin('variants', 'price');
         if (! empty($filters['search'])) {
             $search = $filters['search'];
-            $query->where(fn (Builder $query) => $query->where('name', 'like', '%'.$search.'%')
-                ->orWhereHas('variants', fn (Builder $query) => $query->where('sku', 'like', '%'.$search.'%')));
+            $query->where(fn(Builder $query) => $query->where('name', 'like', '%' . $search . '%')
+                ->orWhereHas('variants', fn(Builder $query) => $query->where('sku', 'like', '%' . $search . '%')));
         }
         foreach (['category' => 'categories', 'tag' => 'tags'] as $key => $relation) {
             if (! empty($filters[$key])) {
-                $query->whereHas($relation, fn (Builder $query) => $query->whereKey($filters[$key]));
+                $query->whereHas($relation, fn(Builder $query) => $query->whereKey($filters[$key]));
             }
         }
         foreach (['status', 'product_type'] as $field) {
@@ -101,14 +101,14 @@ class TenantProductRepository
         $data = $this->filterOptions();
         $data['taxes'] = Tax::withTrashed()
             ->where(function (Builder $query) use ($product): void {
-                $query->where(fn (Builder $available) => $available->where('is_active', true)->whereNull('deleted_at'));
+                $query->where(fn(Builder $available) => $available->where('is_active', true)->whereNull('deleted_at'));
                 if ($product?->tax_id !== null) {
                     $query->orWhere('id', $product->tax_id);
                 }
             })
             ->orderBy('name')->get(['id', 'name', 'code', 'rate', 'is_active', 'deleted_at']);
         if ($product) {
-            $data['tags'] = Tag::where(fn (Builder $query) => $query->where('status', true)->orWhereIn('id', $product->tags->modelKeys()))->orderBy('name')->get(['id', 'name']);
+            $data['tags'] = Tag::where(fn(Builder $query) => $query->where('status', true)->orWhereIn('id', $product->tags->modelKeys()))->orderBy('name')->get(['id', 'name']);
         }
         $data['attributes'] = ProductAttribute::with('options')->where('status', true)->orderBy('name')->get();
         $data['related_products'] = Product::where('id', '!=', $product?->id ?? 0)->orderBy('name')->get(['id', 'name']);
@@ -142,7 +142,7 @@ class TenantProductRepository
         $slug = $base;
         $suffix = 2;
         while (Product::withTrashed()->where('slug', $slug)->exists()) {
-            $slug = $base.'-'.$suffix++;
+            $slug = $base . '-' . $suffix++;
         }
 
         return $slug;
@@ -193,9 +193,14 @@ class TenantProductRepository
             $row['sku'] = Str::upper(trim($row['sku']));
             $variant = $id ? $product->variants()->findOrFail($id) : $product->variants()->make();
             if ($id) {
-                $reservedByOrders = (int) DB::connection('tenant')->table('order_stock_movements')->where('product_variant_id', $id)->sum('reserved_delta');
+                $reservedByOrders = (int) DB::connection('tenant')->table('order_stock_movements')->where('product_variant_id', $id)->lockForUpdate()->get()->sum('reserved_delta');
+                $reservedByReplacements = (int) DB::connection('tenant')->table('replacement_stock_movements')->where('product_variant_id', $id)->lockForUpdate()->get()->sum('reserved_delta');
+                $reservedByOrders += $reservedByReplacements;
                 if (($row['reserved_quantity'] ?? 0) < $reservedByOrders || ($row['quantity'] ?? 0) < $reservedByOrders) {
                     throw ValidationException::withMessages(['variants' => 'Stock cannot be reduced below the quantity reserved by orders. Reload the product before editing inventory.']);
+                }
+                if ($reservedByReplacements > 0 && ($row['sku'] !== $variant->sku || $pairs != $variant->attributeValues->pluck('attribute_option_id', 'attribute_id')->sortKeys()->all())) {
+                    throw ValidationException::withMessages(['variants' => 'A SKU or variant reserved for a replacement cannot be changed before dispatch.']);
                 }
             }
             $variant->fill($row)->save();

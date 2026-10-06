@@ -49,7 +49,7 @@ class Order extends TenantModel
 
     public function shipment(): HasOne
     {
-        return $this->hasOne(OrderShipment::class);
+        return $this->hasOne(OrderShipment::class)->whereNull('replacement_request_id');
     }
 
     public function invoice(): HasOne

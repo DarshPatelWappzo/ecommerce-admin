@@ -186,12 +186,13 @@ class TenantOrderRepository
      * @param  int  $quantityDelta  The on-hand quantity delta.
      * @param  int  $reservedDelta  The reserved quantity delta.
      */
-    public function stock(Order $order, ProductVariant $variant, string $event, int $quantityDelta, int $reservedDelta): void
+    public function stock(Order $order, ProductVariant $variant, string $event, int $quantityDelta, int $reservedDelta, ?int $replacementId = null): void
     {
         $variant->quantity += $quantityDelta;
         $variant->reserved_quantity += $reservedDelta;
         $variant->save();
-        DB::connection('tenant')->table('order_stock_movements')->insert([
+        DB::connection('tenant')->table($replacementId === null ? 'order_stock_movements' : 'replacement_stock_movements')->insert([
+            ...($replacementId === null ? [] : ['replacement_request_id' => $replacementId]),
             'order_id' => $order->id,
             'product_variant_id' => $variant->id,
             'event' => $event,
