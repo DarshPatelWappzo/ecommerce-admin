@@ -28,6 +28,9 @@ class TenantReturnService
                 throw ValidationException::withMessages(['order_item' => $policy['reason']]);
             }
             ReturnReason::where('status', true)->findOrFail($input['reason_id']);
+            if ((int) $input['quantity'] > $policy['remaining_returnable_quantity']) {
+                throw ValidationException::withMessages(['quantity' => 'The quantity exceeds the remaining purchased quantity.']);
+            }
             $calculation = $this->calculator->calculate($item, (int) $input['quantity']);
             if ($item->is_returnable === null) {
                 $item->update(['is_returnable' => $item->product?->is_returnable ?? false, 'return_days' => $item->product?->return_days, 'is_replaceable' => $item->product?->is_replaceable ?? false, 'replacement_days' => $item->product?->replacement_days]);

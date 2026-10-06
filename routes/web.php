@@ -15,6 +15,7 @@ use App\Http\Controllers\TenantInvoiceController;
 use App\Http\Controllers\TenantOrderController;
 use App\Http\Controllers\TenantPaymentController;
 use App\Http\Controllers\TenantProductController;
+use App\Http\Controllers\TenantReplacementController;
 use App\Http\Controllers\TenantReturnController;
 use App\Http\Controllers\TenantRoleController;
 use App\Http\Controllers\TenantTaxController;
@@ -45,6 +46,13 @@ Route::prefix('tenant')->name('tenant.')->group(function (): void {
             ->name('dashboard');
 
         Route::middleware(RequireTenantPasswordChange::class)->group(function (): void {
+            Route::prefix('replacements')->name('replacements.')->controller(TenantReplacementController::class)->group(function (): void {
+                Route::get('/', 'index')->name('index');
+                Route::post('/', 'store')->name('store');
+                Route::get('/{replacement}', 'show')->whereNumber('replacement')->name('show');
+                Route::post('/{replacement}/transition', 'transition')->whereNumber('replacement')->name('transition');
+                Route::post('/{replacement}/refund', 'refund')->whereNumber('replacement')->name('refund');
+            });
             Route::prefix('returns')->name('returns.')->controller(TenantReturnController::class)->group(function (): void {
                 Route::get('/', 'index')->name('index');
                 Route::get('/reasons', 'reasons')->name('reasons');

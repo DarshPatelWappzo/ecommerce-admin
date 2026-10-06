@@ -9,12 +9,14 @@ use App\Http\Controllers\Api\Tenant\TenantProductController;
 use App\Http\Controllers\Api\Tenant\TenantUserController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\CustomerAuthController;
+use App\Http\Controllers\CustomerReplacementController;
 use App\Http\Controllers\CustomerReturnController;
 use App\Http\Controllers\OrderPaymentWebhookController;
 use App\Http\Controllers\TenantCatalogController;
 use App\Http\Controllers\TenantCouponController;
 use App\Http\Controllers\TenantInvoiceController;
 use App\Http\Controllers\TenantPaymentController;
+use App\Http\Controllers\TenantReplacementController;
 use App\Http\Controllers\TenantReturnController;
 use App\Http\Middleware\AuthenticateCustomerToken;
 use App\Http\Middleware\AuthenticateTenantToken;
@@ -37,6 +39,13 @@ Route::controller(TenantAuthController::class)->group(function (): void {
 });
 
 Route::middleware(AuthenticateTenantToken::class)->group(function (): void {
+    Route::prefix('tenant/replacements')->name('api.tenant.replacements.')->controller(TenantReplacementController::class)->group(function (): void {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{replacement}', 'show')->whereNumber('replacement')->name('show');
+        Route::post('/{replacement}/transition', 'transition')->whereNumber('replacement')->name('transition');
+        Route::post('/{replacement}/refund', 'refund')->whereNumber('replacement')->name('refund');
+    });
     Route::prefix('tenant/returns')->name('api.tenant.returns.')->controller(TenantReturnController::class)->group(function (): void {
         Route::get('/', 'index')->name('index');
         Route::get('/reasons', 'reasons')->name('reasons');
@@ -146,6 +155,14 @@ Route::prefix('customer')->name('api.customer.')->group(function (): void {
     });
     Route::middleware([AuthenticateCustomerToken::class, 'throttle:60,1'])->group(function (): void {
         Route::post('auth/logout', [CustomerAuthController::class, 'logout'])->name('auth.logout');
+        Route::controller(CustomerReplacementController::class)->group(function (): void {
+            Route::get('replacement-reasons', 'reasons')->name('replacements.reasons');
+            Route::get('orders/{order}/items/{item}/replacement-eligibility', 'eligibility')->whereNumber(['order', 'item'])->name('replacements.eligibility');
+            Route::post('orders/{order}/items/{item}/replacements', 'store')->whereNumber(['order', 'item'])->name('replacements.store');
+            Route::get('replacements', 'index')->name('replacements.index');
+            Route::get('replacements/{replacement}', 'show')->whereNumber('replacement')->name('replacements.show');
+            Route::post('replacements/{replacement}/cancel', 'cancel')->whereNumber('replacement')->name('replacements.cancel');
+        });
         Route::controller(CustomerReturnController::class)->group(function (): void {
             Route::get('return-reasons', 'reasons')->name('returns.reasons');
             Route::get('orders/{order}/items/{item}/return-eligibility', 'eligibility')->whereNumber(['order', 'item'])->name('returns.eligibility');

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Tenant\OrderItem;
+use App\Models\Tenant\ReplacementRequest;
 use App\Models\Tenant\ReturnRequest;
 
 class TenantReturnEligibilityService
@@ -14,14 +15,15 @@ class TenantReturnEligibilityService
         $returnable = $item->is_returnable ?? $item->product?->is_returnable ?? false;
         $days = $item->is_returnable !== null ? $item->return_days : $item->product?->return_days;
         $delivery = $item->order->shipment?->delivered_at;
-        $reserved = $item->returns->filter(fn (ReturnRequest $return): bool => $this->consumesQuantity($return));
-        $remaining = max(0, $item->quantity - $reserved->sum('quantity'));
+        $reserved = $item->returns->filter(fn(ReturnRequest $return): bool => $this->consumesQuantity($return));
+        $replacementQuantity = $item->replacements()->whereNotIn('status', ReplacementRequest::RELEASED)->sum('quantity');
+        $remaining = max(0, $item->quantity - $reserved->sum('quantity') - $replacementQuantity);
         $deadline = $delivery && $days !== null ? $delivery->copy()->addDays($days)->endOfDay() : null;
         $reason = match (true) {
             ! $returnable || $days === null => 'PRODUCT_NOT_RETURNABLE',
             $item->order->status !== 'delivered' || ! $delivery => 'ORDER_NOT_DELIVERED',
             now()->gt($deadline) => 'RETURN_WINDOW_EXPIRED',
-            $remaining === 0 && $reserved->contains(fn ($return) => ! in_array($return->status, ['refunded', 'closed'], true)) => 'ACTIVE_RETURN_EXISTS',
+            $remaining === 0 && $reserved->contains(fn($return) => ! in_array($return->status, ['refunded', 'closed'], true)) => 'ACTIVE_RETURN_EXISTS',
             $remaining === 0 => 'ALREADY_FULLY_RETURNED',
             default => null,
         };
