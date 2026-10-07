@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Tenant\Product;
+use App\Models\Tenant\ProductVariant;
 use App\Repositories\TenantProductRepository;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Arr;
@@ -14,7 +15,7 @@ use Throwable;
 
 class TenantProductService
 {
-    public function __construct(private readonly TenantProductRepository $products, private readonly AuditLogService $audit) {}
+    public function __construct(private readonly TenantProductRepository $products, private readonly TenantAuditLogService $audit) {}
 
     /**
      * Persist a product and its related variants, attributes, and images in a tenant transaction.
@@ -30,7 +31,8 @@ class TenantProductService
         try {
             $product = DB::connection('tenant')->transaction(function () use ($data, $id, &$uploaded, &$obsolete): Product {
                 $product = $id ? $this->products->find($id, true) : new Product;
-                $before = $id ? $product->toArray() : null;
+                $before = $id ? $this->snapshot($product) : null;
+                $stockBefore = $id ? $product->variants->keyBy('id')->map->only(['quantity', 'reserved_quantity'])->all() : [];
                 $fields = Arr::only($data, ['name', 'slug', 'product_type', 'short_description', 'description', 'status', 'featured', 'meta_title', 'meta_description', 'tax_id', 'hsn_code']);
                 foreach (['is_returnable' => 'return_days', 'is_replaceable' => 'replacement_days'] as $flag => $days) {
                     $fields[$flag] = (bool) ($data[$flag] ?? $product->$flag ?? false);
@@ -48,7 +50,7 @@ class TenantProductService
                         $image = ! empty($row['id']) ? $product->images()->findOrFail($row['id']) : $product->images()->make();
                         $file = $row['file'] ?? null;
                         if ($file) {
-                            $path = $file->store('products/' . hash('sha256', (string) config('database.connections.tenant.database')) . '/' . $product->id, 'public');
+                            $path = $file->store('products/'.hash('sha256', (string) config('database.connections.tenant.database')).'/'.$product->id, 'public');
                             if (! $path) {
                                 throw new \RuntimeException('The product image could not be stored.');
                             }
@@ -73,7 +75,20 @@ class TenantProductService
                     }
                 }
                 $product = $this->products->find($product->id);
-                $this->audit->recordSnapshot($product, $id ? 'updated' : 'created', $before, $product->toArray());
+                $this->audit->recordSnapshot($product, $id ? TenantAuditAction::UPDATED : TenantAuditAction::CREATED, $before, $this->snapshot($product));
+                foreach ($product->variants as $variant) {
+                    $previous = $stockBefore[$variant->id] ?? null;
+                    $current = $variant->only(['quantity', 'reserved_quantity']);
+                    if ($previous !== null && $previous !== $current) {
+                        $this->audit->log('inventory', TenantAuditAction::INVENTORY_ADJUSTED, $variant, $previous, $current, metadata: [
+                            'quantity_before' => $previous['quantity'],
+                            'quantity_after' => $variant->quantity,
+                            'difference' => $variant->quantity - $previous['quantity'],
+                            'reason' => 'Product inventory adjustment',
+                            'product_id' => $product->id,
+                        ]);
+                    }
+                }
 
                 return $product;
             });
@@ -98,15 +113,34 @@ class TenantProductService
     {
         DB::connection('tenant')->transaction(function () use ($id): void {
             $product = $this->products->find($id, true);
-            if ($product->variants()->orderBy('id')->lockForUpdate()->get()->contains(fn($variant) => $variant->reserved_quantity > 0)) {
+            if ($product->variants()->orderBy('id')->lockForUpdate()->get()->contains(fn ($variant) => $variant->reserved_quantity > 0)) {
                 throw ValidationException::withMessages(['product' => 'Products with reserved stock cannot be deleted.']);
             }
-            $before = $product->toArray();
+            $before = $this->snapshot($product);
             $product->variants()->update(['combination_key' => null]);
             $product->variants()->delete();
             $product->delete();
             $this->audit->recordSnapshot($product, 'deleted', $before, null);
         });
+    }
+
+    /** Capture business fields without regenerated relation row IDs or duplicate stock values.
+     * @return array<string, mixed>
+     */
+    private function snapshot(Product $product): array
+    {
+        return [
+            ...$product->attributesToArray(),
+            'categories' => $product->categories->pluck('id')->sort()->values()->all(),
+            'tags' => $product->tags->pluck('id')->sort()->values()->all(),
+            'related_products' => $product->relatedProducts->pluck('id')->sort()->values()->all(),
+            'attributes' => $product->attributeValues->map->only(['attribute_id', 'attribute_option_id', 'value'])->sortBy('attribute_id')->values()->all(),
+            'variants' => $product->variants->sortBy('id')->mapWithKeys(fn (ProductVariant $variant): array => [$variant->id => [
+                ...$variant->only(['sku', 'price', 'special_price', 'special_price_from', 'special_price_to', 'barcode', 'cost_price', 'weight', 'status', 'reorder_level']),
+                'options' => $variant->attributeValues->map->only(['attribute_id', 'attribute_option_id'])->sortBy('attribute_id')->values()->all(),
+            ]])->all(),
+            'images' => $product->images->map->only(['id', 'image', 'variant_id', 'alt_text', 'is_primary', 'sort_order'])->all(),
+        ];
     }
 
     /**

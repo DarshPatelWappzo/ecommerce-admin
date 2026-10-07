@@ -3,12 +3,16 @@
 namespace App\Repositories;
 
 use App\Models\Tenant\User;
+use App\Services\TenantAuditAction;
+use App\Services\TenantAuditLogService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 class TenantUserRepository
 {
+    public function __construct(private readonly TenantAuditLogService $audit) {}
+
     public function findById(string $id): ?User
     {
         return User::query()->with('roles:id,name')->find($id);
@@ -16,7 +20,12 @@ class TenantUserRepository
 
     public function delete(User $user): bool
     {
-        return (bool) $user->delete();
+        return DB::connection('tenant')->transaction(function () use ($user): bool {
+            $deleted = (bool) $user->delete();
+            $this->audit->recordSnapshot($user, TenantAuditAction::DELETED, $user->only(['first_name', 'last_name', 'email', 'mobile_number', 'status']), null);
+
+            return $deleted;
+        });
     }
 
     /**
@@ -59,7 +68,8 @@ class TenantUserRepository
     {
         return DB::connection('tenant')->transaction(function () use ($attributes, $roleIds): User {
             $user = User::create($attributes);
-            $user->roles()->sync($roleIds);
+            $this->audit->recordSnapshot($user, TenantAuditAction::CREATED, null, $user->only(['first_name', 'last_name', 'email', 'mobile_number', 'status']));
+            $this->syncRoles($user, $roleIds);
 
             return $user;
         });
@@ -74,8 +84,11 @@ class TenantUserRepository
     public function update(User $user, array $attributes, array $roleIds): User
     {
         return DB::connection('tenant')->transaction(function () use ($user, $attributes, $roleIds): User {
+            $user = User::query()->lockForUpdate()->findOrFail($user->id);
+            $before = $user->only(['first_name', 'last_name', 'email', 'mobile_number', 'status']);
             $user->update($attributes);
-            $user->roles()->sync($roleIds);
+            $this->audit->recordSnapshot($user, TenantAuditAction::UPDATED, $before, $user->only(['first_name', 'last_name', 'email', 'mobile_number', 'status']));
+            $this->syncRoles($user, $roleIds);
 
             return $user->refresh();
         });
@@ -92,5 +105,18 @@ class TenantUserRepository
             ->pluck('id')
             ->map(fn (mixed $roleId): int => (int) $roleId)
             ->all();
+    }
+
+    /** @param array<int, int|string> $roleIds */
+    private function syncRoles(User $user, array $roleIds): void
+    {
+        $before = $user->roles()->pluck('name', 'roles.id')->all();
+        $changes = $user->roles()->sync($roleIds);
+        if ($changes['attached'] !== []) {
+            $this->audit->log('users', TenantAuditAction::ROLE_ASSIGNED, $user, newValues: ['roles' => $user->roles()->whereIn('roles.id', $changes['attached'])->pluck('name', 'roles.id')->all()]);
+        }
+        if ($changes['detached'] !== []) {
+            $this->audit->log('users', TenantAuditAction::ROLE_REMOVED, $user, oldValues: ['roles' => array_intersect_key($before, array_flip($changes['detached']))]);
+        }
     }
 }

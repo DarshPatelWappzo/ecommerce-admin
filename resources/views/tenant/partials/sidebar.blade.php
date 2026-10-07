@@ -100,6 +100,14 @@
                     <i class="fa-solid fa-file-invoice" aria-hidden="true"></i><span>Invoices</span>
                 </a>
             @endif
+            @if (auth('tenant')->user()?->status === 'active' &&
+                    app(\App\Repositories\TenantRoleRepository::class)->userHasPermission(auth('tenant')->user(),
+                        'audit_logs.view'))
+                <a class="sidebar-link {{ request()->routeIs('tenant.audit-logs.*') ? 'active' : '' }}"
+                    href="{{ route('tenant.audit-logs.index') }}" data-tooltip="Audit Logs">
+                    <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i><span>Audit Logs</span>
+                </a>
+            @endif
         </nav>
     </div>
 </aside>

@@ -14,12 +14,15 @@ use Illuminate\Validation\ValidationException;
 
 class TenantCouponService
 {
+    public function __construct(private readonly TenantAuditLogService $audit) {}
+
     /** Save restrictions under the same coupon lock used by order submission. */
     public function save(array $input, ?Coupon $coupon = null): Coupon
     {
         try {
             return DB::connection('tenant')->transaction(function () use ($input, $coupon): Coupon {
                 $coupon = $coupon?->exists ? Coupon::query()->lockForUpdate()->findOrFail($coupon->id) : new Coupon;
+                $before = $coupon->exists ? $this->snapshot($coupon) : null;
                 foreach (['starts_at', 'ends_at'] as $field) {
                     if (isset($input[$field])) {
                         $input[$field] = Carbon::parse($input[$field])->setTimezone(config('app.timezone'));
@@ -29,6 +32,8 @@ class TenantCouponService
                 foreach (['products', 'categories', 'customers'] as $relation) {
                     $coupon->{$relation}()->sync($input[$relation] ?? []);
                 }
+
+                $this->audit->recordSnapshot($coupon, $before === null ? TenantAuditAction::CREATED : TenantAuditAction::UPDATED, $before, $this->snapshot($coupon));
 
                 return $coupon->load(['products', 'categories', 'customers']);
             }, 3);
@@ -42,12 +47,25 @@ class TenantCouponService
     {
         DB::connection('tenant')->transaction(function () use ($coupon, $active): void {
             $coupon = Coupon::query()->lockForUpdate()->findOrFail($coupon->id);
+            $before = $coupon->only(['code', 'is_active']);
             if ($active === null) {
                 $coupon->delete();
             } else {
                 $coupon->update(['is_active' => $active]);
             }
+            $this->audit->recordSnapshot($coupon, $active === null ? TenantAuditAction::DELETED : TenantAuditAction::STATUS_CHANGED, $before, $active === null ? null : $coupon->only(['code', 'is_active']));
         }, 3);
+    }
+
+    /** @return array<string, mixed> */
+    private function snapshot(Coupon $coupon): array
+    {
+        $values = $coupon->attributesToArray();
+        foreach (['products', 'categories', 'customers'] as $relation) {
+            $values[$relation] = $coupon->{$relation}()->orderBy('id')->pluck('id')->all();
+        }
+
+        return $values;
     }
 
     /**
@@ -71,14 +89,14 @@ class TenantCouponService
             return ['items' => $items, 'coupon' => $empty];
         }
         $coupon = Coupon::query()->where('code', strtoupper(trim($input['coupon_code'])))
-            ->when($lock, fn($query) => $query->lockForUpdate())->first();
+            ->when($lock, fn ($query) => $query->lockForUpdate())->first();
         if (! $coupon || $coupon->status !== 'active') {
             $this->reject('This coupon is unavailable, scheduled or expired.');
         }
         $coupon->load([
-            'products' => fn($query) => $query->when($lock, fn($query) => $query->lockForUpdate()),
-            'categories' => fn($query) => $query->when($lock, fn($query) => $query->lockForUpdate()),
-            'customers' => fn($query) => $query->when($lock, fn($query) => $query->lockForUpdate()),
+            'products' => fn ($query) => $query->when($lock, fn ($query) => $query->lockForUpdate()),
+            'categories' => fn ($query) => $query->when($lock, fn ($query) => $query->lockForUpdate()),
+            'customers' => fn ($query) => $query->when($lock, fn ($query) => $query->lockForUpdate()),
         ]);
         $customerId = isset($input['customer_id']) ? (int) $input['customer_id'] : null;
         if (! $customerId && ($coupon->per_customer_limit !== null || $coupon->customers->isNotEmpty())) {
@@ -88,7 +106,7 @@ class TenantCouponService
             $this->reject('This coupon is not available for the selected customer.');
         }
         $usage = $coupon->redemptions()->whereNull('released_at')
-            ->when($lock, fn($query) => $query->lockForUpdate());
+            ->when($lock, fn ($query) => $query->lockForUpdate());
         if ($coupon->usage_limit !== null && (clone $usage)->count() >= $coupon->usage_limit) {
             $this->reject('This coupon has reached its usage limit.');
         }
@@ -146,7 +164,7 @@ class TenantCouponService
                 'calculation_order' => 'catalog_then_manual_discount_then_coupon_then_tax',
                 'product_ids' => $coupon->products->modelKeys(),
                 'category_ids' => $coupon->categories->modelKeys(),
-                'allocations' => array_map(fn(array $item): array => Arr::only($item, ['product_variant_id', 'coupon_discount']), $items),
+                'allocations' => array_map(fn (array $item): array => Arr::only($item, ['product_variant_id', 'coupon_discount']), $items),
             ],
         ]];
     }

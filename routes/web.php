@@ -5,6 +5,7 @@ use App\Http\Controllers\SuperAdmin\AuthController;
 use App\Http\Controllers\SuperAdmin\PackageController;
 use App\Http\Controllers\SuperAdmin\TenantProvisioningController;
 use App\Http\Controllers\SuperAdmin\UserController;
+use App\Http\Controllers\TenantAuditLogController;
 use App\Http\Controllers\TenantAuthController;
 use App\Http\Controllers\TenantCatalogController;
 use App\Http\Controllers\TenantCategoryController;
@@ -46,6 +47,8 @@ Route::prefix('tenant')->name('tenant.')->group(function (): void {
             ->name('dashboard');
 
         Route::middleware(RequireTenantPasswordChange::class)->group(function (): void {
+            Route::get('audit-logs', [TenantAuditLogController::class, 'index'])->name('audit-logs.index');
+            Route::get('audit-logs/{auditLog}', [TenantAuditLogController::class, 'show'])->whereNumber('auditLog')->name('audit-logs.show');
             Route::prefix('replacements')->name('replacements.')->controller(TenantReplacementController::class)->group(function (): void {
                 Route::get('/', 'index')->name('index');
                 Route::post('/', 'store')->name('store');

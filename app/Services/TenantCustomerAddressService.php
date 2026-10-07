@@ -9,13 +9,14 @@ use Illuminate\Support\Facades\DB;
 
 class TenantCustomerAddressService
 {
-    public function __construct(private readonly TenantCustomerRepository $customers, private readonly TenantCustomerAddressRepository $addresses, private readonly AuditLogService $audit) {}
+    public function __construct(private readonly TenantCustomerRepository $customers, private readonly TenantCustomerAddressRepository $addresses, private readonly TenantAuditLogService $audit) {}
 
     public function save(int $customerId, array $data, ?int $id = null): CustomerAddress
     {
         return DB::connection('tenant')->transaction(function () use ($customerId, $data, $id): CustomerAddress {
             $customer = $this->customers->find($customerId, true);
             $address = $id ? $this->addresses->find($customer, $id) : null;
+            $addressBefore = $address?->attributesToArray() ?? [];
             $before = $this->addresses->all($customer)->map->only(['id', 'is_default_shipping', 'is_default_billing'])->all();
             if ($before === []) {
                 $data['is_default_shipping'] = true;
@@ -30,9 +31,10 @@ class TenantCustomerAddressService
                 }
             }
             $saved = $this->addresses->save($customer, $data, $address);
-            $this->audit->recordSnapshot($saved, $id ? 'updated' : 'created', ['defaults' => $before], [
+            $changedFields = array_keys(array_diff_assoc($saved->only(array_keys($data)), array_intersect_key($addressBefore, $data)));
+            $this->audit->recordSnapshot($saved, $id ? 'updated' : 'created', ['customer_id' => $customerId, 'defaults' => $before], [
                 'customer_id' => $customerId,
-                'changed_fields' => array_keys($data),
+                ...($changedFields !== [] ? ['changed_fields' => $changedFields] : []),
                 'defaults' => $this->addresses->all($customer)->map->only(['id', 'is_default_shipping', 'is_default_billing'])->all(),
             ]);
 

@@ -12,6 +12,7 @@ use App\Http\Controllers\CustomerAuthController;
 use App\Http\Controllers\CustomerReplacementController;
 use App\Http\Controllers\CustomerReturnController;
 use App\Http\Controllers\OrderPaymentWebhookController;
+use App\Http\Controllers\TenantAuditLogController;
 use App\Http\Controllers\TenantCatalogController;
 use App\Http\Controllers\TenantCouponController;
 use App\Http\Controllers\TenantInvoiceController;
@@ -39,6 +40,8 @@ Route::controller(TenantAuthController::class)->group(function (): void {
 });
 
 Route::middleware(AuthenticateTenantToken::class)->group(function (): void {
+    Route::get('tenant/audit-logs', [TenantAuditLogController::class, 'index'])->name('api.tenant.audit-logs.index');
+    Route::get('tenant/audit-logs/{auditLog}', [TenantAuditLogController::class, 'show'])->whereNumber('auditLog')->name('api.tenant.audit-logs.show');
     Route::prefix('tenant/replacements')->name('api.tenant.replacements.')->controller(TenantReplacementController::class)->group(function (): void {
         Route::get('/', 'index')->name('index');
         Route::post('/', 'store')->name('store');

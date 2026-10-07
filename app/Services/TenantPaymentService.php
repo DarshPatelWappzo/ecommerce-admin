@@ -18,7 +18,7 @@ class TenantPaymentService
         private readonly OrderPaymentGateway $gateway,
         private readonly TenantOrderRepository $orders,
         private readonly TenantOrderService $orderService,
-        private readonly AuditLogService $audit,
+        private readonly TenantAuditLogService $audit,
     ) {}
 
     /** @return array<string, string> Enabled method labels, never credentials. */
@@ -229,7 +229,8 @@ class TenantPaymentService
                 throw ValidationException::withMessages(['payment' => 'The provider payment is already assigned to another order.']);
             }
             if ((! $payment || $payment->status !== 'captured')
-                && ! ($payment && in_array($payment->status, ['authorized', 'failed'], true) && $entity['status'] === 'created')) {
+                && ! ($payment && in_array($payment->status, ['authorized', 'failed'], true) && $entity['status'] === 'created')
+            ) {
                 $previousStatus = $payment?->status;
                 $payment ??= $order->payments()->whereNull('gateway_payment_id')->where('status', 'pending')->first() ?? new OrderPayment(['order_id' => $order->id]);
                 $payment->fill([
@@ -267,9 +268,13 @@ class TenantPaymentService
                         : ($order->payments()->whereNotNull('gateway_payment_id')->whereIn('status', ['created', 'authorized'])->exists() ? 'pending' : 'failed'));
                 $order->update(['payment_status' => $status]);
                 if ($previousStatus !== $payment->status) {
-                    $this->audit->recordSnapshot($order, 'gateway_payment_reconciled', ['attempt_status' => $previousStatus], [
-                        'payment_id' => $payment->id, 'attempt_status' => $payment->status,
-                        'payment_status' => $status, 'checkout_status' => $checkout->status,
+                    $this->audit->recordSnapshot($payment, TenantAuditAction::GATEWAY_PAYMENT_RECONCILED, ['attempt_status' => $previousStatus], [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'payment_id' => $payment->id,
+                        'attempt_status' => $payment->status,
+                        'payment_status' => $status,
+                        'checkout_status' => $checkout->status,
                     ]);
                 }
             }
