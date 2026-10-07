@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ListingFilterRequest;
 use App\Http\Requests\SuperAdminUserStoreRequest;
 use App\Http\Requests\SuperAdminUserUpdateRequest;
 use App\Models\User;
@@ -34,14 +35,15 @@ class UserController extends Controller
     /**
      * Display a paginated list of regular users.
      *
-     * @param  Request  $request  The incoming request.
+     * @param  ListingFilterRequest  $request  The incoming request.
      * @return View The response for this action.
      */
-    public function index(Request $request): View
+    public function index(ListingFilterRequest $request): View
     {
         $users = $this->userRepository->paginateRegularUsers(
             10,
-            $request->string('search')->trim()->toString(),
+            $request->validated('search'),
+            $request->validated('status'),
         );
 
         $data = [];
@@ -68,10 +70,10 @@ class UserController extends Controller
      */
     public function store(SuperAdminUserStoreRequest $request): RedirectResponse|JsonResponse
     {
-        $plainPassword = Str::ucfirst(Str::lower(Str::password(5, letters: true, numbers: false, symbols: false))).'@'.random_int(100, 999);
+        $plainPassword = Str::ucfirst(Str::lower(Str::password(5, letters: true, numbers: false, symbols: false))) . '@' . random_int(100, 999);
         $centralUser = DB::transaction(function () use ($request, $plainPassword): User {
             $centralUser = $this->userRepository->createRegularUser([
-                'name' => $request->string('first_name')->trim()->toString().' '.$request->string('last_name')->trim()->toString(),
+                'name' => $request->string('first_name')->trim()->toString() . ' ' . $request->string('last_name')->trim()->toString(),
                 'first_name' => $request->string('first_name')->trim()->toString(),
                 'last_name' => $request->string('last_name')->trim()->toString(),
                 'email' => $request->string('email')->lower()->trim()->toString(),
@@ -139,7 +141,7 @@ class UserController extends Controller
     {
         DB::transaction(function () use ($request, $user): void {
             $this->userRepository->updateRegularUser($user, [
-                'name' => $request->string('first_name')->trim()->toString().' '.$request->string('last_name')->trim()->toString(),
+                'name' => $request->string('first_name')->trim()->toString() . ' ' . $request->string('last_name')->trim()->toString(),
                 'first_name' => $request->string('first_name')->trim()->toString(),
                 'last_name' => $request->string('last_name')->trim()->toString(),
                 'mobile_number' => $request->string('mobile_number')->trim()->toString(),
@@ -149,7 +151,7 @@ class UserController extends Controller
             $this->userDomainRepository->syncForUser($user, $request->validated()['domains']);
         });
 
-        $newDomainPassword = Str::ucfirst(Str::lower(Str::password(5, letters: true, numbers: false, symbols: false))).'@'.random_int(100, 999);
+        $newDomainPassword = Str::ucfirst(Str::lower(Str::password(5, letters: true, numbers: false, symbols: false))) . '@' . random_int(100, 999);
         $user->load('domains.tenantDatabase');
         foreach ($user->domains as $domain) {
             if ($domain->tenantDatabase === null) {

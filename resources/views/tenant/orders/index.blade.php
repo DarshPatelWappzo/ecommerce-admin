@@ -2,25 +2,47 @@
 @section('title', 'Orders')
 @section('content')
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="page-title">Orders</h1>
-            @if ($permissions['create'])
-                <a class="btn btn-primary" href="{{ route('tenant.orders.create') }}">Add order</a>
-            @endif
-        </div>
-        @include('tenant.customers._notifications')
-        <section class="dashboard-card p-0 overflow-hidden" data-ajax-pagination-container>
-            <div class="p-3 border-bottom">
-                <label class="visually-hidden" for="tenant-order-search">Search orders</label>
-                <input class="form-control" id="tenant-order-search" type="search" value="{{ request('search') }}"
-                    placeholder="Search orders..." maxlength="200" data-ajax-search>
+        <div class="listing-page-header">
+            <h1 class="page-title mb-0">Orders</h1>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @if ($permissions['create'])
+                    <a class="btn btn-primary" href="{{ route('tenant.orders.create') }}">Add order</a>
+                @endif
+                <x-filter-button :filters="['search', 'status', 'payment_status', 'payment_method', 'from', 'to']" />
             </div>
+        </div>
+        <x-filter-offcanvas :show-errors="false" :action="route('tenant.orders.index')" :filters="['search', 'status', 'payment_status', 'payment_method', 'from', 'to']">
+            <x-filter-field name="search" label="Order number or customer" type="search" maxlength="200" />
+            <x-filter-field name="status" label="Order status" :options="collect(array_keys(\App\Models\Tenant\Order::TRANSITIONS))->mapWithKeys(
+                fn($value) => [$value => \Illuminate\Support\Str::headline($value)],
+            )" />
+            <x-filter-field name="payment_status" label="Payment status" :options="[
+                'unpaid' => 'Unpaid',
+                'pending' => 'Pending',
+                'failed' => 'Failed',
+                'partially_paid' => 'Partially Paid',
+                'paid' => 'Paid',
+            ]" />
+            <x-filter-field name="payment_method" label="Payment method" :options="[
+                'cod' => 'COD',
+                'cash' => 'Cash',
+                'bank_transfer' => 'Bank Transfer',
+                'online' => 'Online',
+                'razorpay' => 'Razorpay',
+            ]" />
+            <x-filter-field name="from" label="Order date from" type="date" />
+            <x-filter-field name="to" label="Order date to" type="date" />
+        </x-filter-offcanvas>
+
+        @include('tenant.customers._notifications')
+        <section class="dashboard-card listing-table-card" data-ajax-pagination-container>
+
             <div class="table-responsive">
-                <table class="table user-table align-middle mb-0">
+                <table class="table listing-table align-middle mb-0">
                     <thead>
                         <tr>
                             @foreach (['Order number', 'Customer', 'Date', 'Total', 'Payment', 'Status', 'Actions'] as $heading)
-                                <th>{{ $heading }}</th>
+                                <th scope="col">{{ $heading }}</th>
                             @endforeach
                         </tr>
                     </thead>
@@ -42,14 +64,14 @@
                                 </td>
                             </tr>
                         @empty<tr>
-                                <td colspan="7" class="text-center text-muted py-5">No orders match your search.</td>
+                                <td colspan="7" class="listing-empty">No orders match your search.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
             @if ($orders->hasPages())
-                <div class="border-top p-3">{{ $orders->links() }}</div>
+                <div class="listing-table-footer">{{ $orders->links() }}</div>
             @endif
         </section>
     </div>

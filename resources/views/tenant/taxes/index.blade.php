@@ -4,34 +4,35 @@
 
 @section('content')
     <div class="container-fluid">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div class="listing-page-header">
             <div>
                 <p class="text-primary fw-semibold mb-1">Tenant Administration</p>
-                <h1 class="page-title mb-1">Taxes</h1>
+                <h1 class="page-title mb-0">Taxes</h1>
                 <p class="text-secondary mb-0">Manage percentage tax rates.</p>
             </div>
-            @if ($canCreate)
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @if ($canCreate)
                 <a class="btn btn-primary" href="{{ route('tenant.taxes.create') }}">
                     <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Add Tax
                 </a>
-            @endif
+                @endif
+                <x-filter-button :filters="['search', 'is_active']" />
+            </div>
         </div>
+        <x-filter-offcanvas :action="route('tenant.taxes.index')" :filters="['search', 'is_active']">
+            <x-filter-field name="search" label="Name or code" type="search" maxlength="100" />
+            <x-filter-field name="is_active" label="Status" :options="['1' => 'Active', '0' => 'Inactive']" />
+        </x-filter-offcanvas>
+
         @foreach (['success' => 'success', 'error' => 'danger'] as $key => $style)
             @if (session($key))
                 <div class="alert alert-{{ $style }}" role="alert">{{ session($key) }}</div>
             @endif
         @endforeach
-        <section class="dashboard-card p-0 overflow-hidden" data-ajax-pagination-container>
-            <div class="p-3 border-bottom">
-                <label class="visually-hidden" for="tenant-tax-search">Search taxes by name or code</label>
-                <input class="form-control" id="tenant-tax-search" type="search" value="{{ request('search') }}"
-                    placeholder="Search taxes..." maxlength="100" data-ajax-search>
-                @error('search')
-                    <span class="field-error">{{ $message }}</span>
-                @enderror
-            </div>
+        <section class="dashboard-card listing-table-card" data-ajax-pagination-container>
+
             <div class="table-responsive">
-                <table class="table align-middle mb-0">
+                <table class="table listing-table align-middle mb-0">
                     <thead>
                         <tr>
                             <th scope="col">No.</th>
@@ -65,14 +66,14 @@
                             </tr>
                         @empty
                             <tr>
-                                <td class="text-center text-secondary py-4" colspan="6">No taxes found.</td>
+                                <td colspan="6" class="listing-empty">No taxes found.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
             @if ($taxes->hasPages())
-                <div class="p-3 border-top">{{ $taxes->links() }}</div>
+                <div class="listing-table-footer">{{ $taxes->links() }}</div>
             @endif
         </section>
     </div>

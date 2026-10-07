@@ -5,7 +5,9 @@ namespace App\Repositories;
 use App\Models\Tenant\Category;
 use App\Services\TenantAuditLogService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -71,9 +73,9 @@ class TenantCategoryRepository
         $slug = $base;
         $suffix = 2;
         while (DB::connection('tenant')->table('categories')->where('slug', $slug)
-            ->when($id !== null, fn ($query) => $query->where('id', '!=', $id))->exists()
+            ->when($id !== null, fn($query) => $query->where('id', '!=', $id))->exists()
         ) {
-            $slug = $base.'-'.$suffix++;
+            $slug = $base . '-' . $suffix++;
         }
         $attributes = [];
         $attributes['name'] = $data['name'];
@@ -91,7 +93,8 @@ class TenantCategoryRepository
         return $id;
     }
 
-    public function paginate(): LengthAwarePaginator
+    /** @param array{search?: ?string, status?: bool|int|string|null, parent_id?: int|string|null, from?: ?string, to?: ?string} $filters */
+    public function paginate(array $filters = []): LengthAwarePaginator
     {
         return DB::connection('tenant')->table('categories')
             ->leftJoin('categories as parent', function (JoinClause $join): void {
@@ -99,7 +102,12 @@ class TenantCategoryRepository
             })
             ->select(['categories.id', 'categories.name', 'categories.slug', 'categories.parent_id', 'categories.status', 'parent.name as parent_name'])
             ->whereNull('categories.deleted_at')
+            ->when(filled($filters['search'] ?? null), fn(Builder $query): Builder => $query->where('categories.name', 'like', '%' . $filters['search'] . '%'))
+            ->when(isset($filters['status']), fn(Builder $query): Builder => $query->where('categories.status', $filters['status']))
+            ->when($filters['parent_id'] ?? null, fn(Builder $query, int|string $parentId): Builder => $query->where('categories.parent_id', $parentId))
+            ->when($filters['from'] ?? null, fn(Builder $query, string $from): Builder => $query->where('categories.created_at', '>=', $from . ' 00:00:00'))
+            ->when($filters['to'] ?? null, fn(Builder $query, string $to): Builder => $query->where('categories.created_at', '<', Carbon::parse($to)->addDay()->startOfDay()))
             ->orderByDesc('categories.id')
-            ->paginate(10);
+            ->paginate(10)->withQueryString();
     }
 }

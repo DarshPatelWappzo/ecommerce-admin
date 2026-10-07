@@ -2,48 +2,45 @@
 @section('title', 'Payments')
 @section('content')
     <div class="container-fluid">
-        <h1 class="page-title mb-4">Payments</h1>
+        <div class="listing-page-header">
+            <div>
+                <h1 class="page-title mb-0">Payments</h1>
+            </div>
+            <x-filter-button :filters="['search', 'method', 'status', 'from', 'to']" />
+        </div>
+        <x-filter-offcanvas :show-errors="false" :action="route('tenant.payments.index')" :filters="['search', 'method', 'status', 'from', 'to']">
+            <x-filter-field name="search" label="Order or customer" type="search" maxlength="200" />
+            <x-filter-field name="method" label="Payment method" :options="collect(config('order_payments.methods'))->mapWithKeys(
+                fn($settings, $method) => [$method => $settings['label']],
+            )" />
+            <x-filter-field name="status" label="Status" :options="[
+                'created' => 'Created',
+                'pending' => 'Pending',
+                'authorized' => 'Authorized',
+                'captured' => 'Captured',
+                'failed' => 'Failed',
+                'superseded' => 'Superseded',
+            ]" />
+            <x-filter-field name="from" label="Date from" type="date" />
+            <x-filter-field name="to" label="Date to" type="date" />
+        </x-filter-offcanvas>
+
         @include('tenant.partials.validation-errors')
-        <form method="GET" action="{{ route('tenant.payments.index') }}" class="row g-2 mb-3">
-            <div class="col-md-3"><label class="form-label" for="payment-search">Order or customer</label>
-                <input class="form-control" id="payment-search" name="search" value="{{ request('search') }}">
-            </div>
-            <div class="col-md-2"><label class="form-label" for="payment-method">Method</label>
-                <select class="form-select" id="payment-method" name="method">
-                    <option value="">All methods</option>
-                    @foreach (config('order_payments.methods') as $method => $settings)
-                        <option value="{{ $method }}" @selected(request('method') === $method)>{{ $settings['label'] }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-2"><label class="form-label" for="payment-status">Status</label>
-                <select class="form-select" id="payment-status" name="status">
-                    <option value="">All statuses</option>
-                    @foreach (['created', 'pending', 'authorized', 'captured', 'failed', 'superseded'] as $status)
-                        <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-2"><label class="form-label" for="payment-from">From</label><input class="form-control"
-                    type="date" id="payment-from" name="from" value="{{ request('from') }}"></div>
-            <div class="col-md-2"><label class="form-label" for="payment-to">To</label><input class="form-control"
-                    type="date" id="payment-to" name="to" value="{{ request('to') }}"></div>
-            <div class="col-md-1 align-self-end"><button class="btn btn-primary" type="submit">Filter</button></div>
-        </form>
-        <section class="dashboard-card">
+
+        <section class="dashboard-card listing-table-card">
 
             <div class="table-responsive">
-                <table class="table align-middle">
+                <table class="table listing-table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Date</th>
-                            <th>Order</th>
-                            <th>Customer</th>
-                            <th>Method</th>
-                            <th>Status</th>
-                            <th>Amount</th>
-                            <th>Transaction</th>
-                            <th></th>
+                            <th scope="col">Date</th>
+                            <th scope="col">Order</th>
+                            <th scope="col">Customer</th>
+                            <th scope="col">Method</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Amount</th>
+                            <th scope="col">Transaction</th>
+                            <th scope="col">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -63,13 +60,15 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="text-center text-muted py-5">No payments match your filters.</td>
+                                <td colspan="8" class="listing-empty">No payments match your filters.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
-            {{ $payments->links() }}
+            @if ($payments->hasPages())
+                <div class="listing-table-footer">{{ $payments->links() }}</div>
+            @endif
         </section>
     </div>
 @endsection

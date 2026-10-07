@@ -2,10 +2,12 @@
 
 namespace App\Repositories;
 
+use App\Models\Tenant\Customer;
 use App\Models\Tenant\Order;
 use App\Models\Tenant\ReplacementRequest;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class TenantReplacementRepository
 {
@@ -19,6 +21,18 @@ class TenantReplacementRepository
     public function deliveredOrder(string $number): ?Order
     {
         return Order::with('items')->where('order_number', $number)->where('status', 'delivered')->whereNotNull('customer_id')->first();
+    }
+
+    /** @return Collection<int, string> Tenant customers with replacement history, keyed by ID. */
+    public function customerFilterOptions(): Collection
+    {
+        return Customer::withTrashed()
+            ->whereIn('id', ReplacementRequest::query()->select('customer_id'))
+            ->orderBy('first_name')->orderBy('last_name')->orderBy('id')
+            ->get(['id', 'first_name', 'last_name', 'customer_code', 'deleted_at'])
+            ->mapWithKeys(fn(Customer $customer): array => [
+                $customer->id => trim($customer->first_name . ' ' . $customer->last_name) . ' (' . $customer->customer_code . ')' . ($customer->trashed() ? ' — Archived' : ''),
+            ]);
     }
 
     /** @param array<string, mixed> $filters Validated list filters. */

@@ -42,7 +42,7 @@ class UserRepository
     /**
      * Retrieve a paginated regular-user list filtered by an optional search term.
      */
-    public function paginateRegularUsers(int $perPage = 10, ?string $search = null): LengthAwarePaginator
+    public function paginateRegularUsers(int $perPage = 10, ?string $search = null, ?string $status = null): LengthAwarePaginator
     {
         return User::query()
             ->where('is_super_admin', false)
@@ -59,6 +59,7 @@ class UserRepository
                         ->orWhere('mobile_number', 'like', "%{$search}%");
                 });
             })
+            ->when($status !== null && $status !== '', fn(Builder $query) => $query->where('status', $status))
             ->latest()
             ->paginate($perPage)
             ->withQueryString();

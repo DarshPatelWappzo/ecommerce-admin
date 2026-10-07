@@ -2,71 +2,54 @@
 @section('title', 'Products')
 @section('content')
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="page-title">Products</h1>
-            <div class="d-flex gap-2">
+        <div class="listing-page-header">
+            <h1 class="page-title mb-0">Products</h1>
+            <div class="d-flex flex-wrap align-items-center gap-2">
                 @if ($canCreate)
                     <a class="btn btn-outline-secondary" href="{{ route('tenant.catalog.index') }}">Tags &amp; attributes</a>
                     <a class="btn btn-primary" href="{{ route('tenant.products.create') }}">Add product</a>
                 @endif
+                <x-filter-button :filters="['search', 'category', 'tag', 'status', 'product_type', 'stock', 'min_price', 'max_price']" />
             </div>
         </div>
+        <x-filter-offcanvas :action="route('tenant.products.index')" :filters="['search', 'category', 'tag', 'status', 'product_type', 'stock', 'min_price', 'max_price', 'sort']">
+            <x-filter-field name="search" label="Name or SKU" type="search" maxlength="191" />
+            <x-filter-field name="category" label="Category" :options="$catalog['categories']->pluck('name', 'id')" />
+            <x-filter-field name="tag" label="Tag" :options="$catalog['tags']->pluck('name', 'id')" />
+            <x-filter-field name="status" label="Status" :options="['1' => 'Active', '0' => 'Inactive']" />
+            <x-filter-field name="product_type" label="Product type" :options="['simple' => 'Simple', 'configurable' => 'Configurable']" />
+            <x-filter-field name="stock" label="Stock" :options="['in_stock' => 'In Stock', 'out_of_stock' => 'Out Of Stock', 'low_stock' => 'Low Stock']" />
+            <x-filter-field name="min_price" label="Minimum price" type="number" min="0" step="0.01" />
+            <x-filter-field name="max_price" label="Maximum price" type="number" min="0" step="0.01" />
+            <x-filter-field name="sort" label="Sort" :options="[
+                'newest' => 'Newest',
+                'oldest' => 'Oldest',
+                'name' => 'Name',
+                'price_asc' => 'Price: low to high',
+                'price_desc' => 'Price: high to low',
+            ]" />
+        </x-filter-offcanvas>
+
         @if (session('success'))
             <div class="alert alert-success" role="alert">{{ session('success') }}</div>
         @endif
         <div class="alert alert-danger d-none" data-list-error role="alert"></div>
-        {{-- <form class="dashboard-card mb-4" method="GET" action="{{ route('tenant.products.index') }}">
-            <div class="row g-3">
-                <div class="col-md-3"><label class="form-label" for="search">Name or SKU</label><input
-                        class="form-control" id="search" name="search" value="{{ $filters['search'] ?? '' }}"></div>
-                @foreach (['category' => 'categories', 'tag' => 'tags'] as $field => $items)
-                    <div class="col-md-3"><label class="form-label" for="{{ $field }}">{{ ucfirst($field) }}</label>
-                        <select class="form-select" id="{{ $field }}" name="{{ $field }}">
-                            <option value="">All</option>
-                            @foreach ($catalog[$items] as $option)
-                                <option value="{{ $option->id }}" @selected(($filters[$field] ?? '') == $option->id)>{{ $option->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                @endforeach
-                @foreach (['status' => ['1' => 'Active', '0' => 'Inactive'], 'product_type' => ['simple' => 'Simple', 'configurable' => 'Configurable'], 'stock' => ['in_stock' => 'In stock', 'out_of_stock' => 'Out of stock', 'low_stock' => 'Low stock'], 'sort' => ['newest' => 'Newest', 'oldest' => 'Oldest', 'name' => 'Name', 'price_asc' => 'Price: low to high', 'price_desc' => 'Price: high to low']] as $field => $choices)
-                    <div class="col-md-3"><label class="form-label"
-                            for="{{ $field }}">{{ ucfirst(str_replace('_', ' ', $field)) }}</label>
-                        <select class="form-select" name="{{ $field }}" id="{{ $field }}">
-                            <option value="">All / default</option>
-                            @foreach ($choices as $value => $label)
-                                <option value="{{ $value }}" @selected((string) ($filters[$field] ?? '') === (string) $value)>{{ $label }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                @endforeach
-                @foreach (['min_price' => 'Minimum price', 'max_price' => 'Maximum price'] as $field => $label)
-                    <div class="col-md-3"><label class="form-label"
-                            for="{{ $field }}">{{ $label }}</label><input class="form-control"
-                            type="number" min="0" step="0.01" id="{{ $field }}"
-                            name="{{ $field }}" value="{{ $filters[$field] ?? '' }}"></div>
-                @endforeach
-                <div class="col-12"><button class="btn btn-primary">Filter</button> <a class="btn btn-light"
-                        href="{{ route('tenant.products.index') }}">Reset</a></div>
-            </div>
-        </form> --}}
-        <section class="dashboard-card p-0 overflow-hidden">
+
+        <section class="dashboard-card listing-table-card">
             <div class="table-responsive">
-                <table class="table align-middle mb-0">
+                <table class="table listing-table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Image</th>
-                            <th>Name / SKU</th>
-                            <th>Type</th>
-                            <th>Categories</th>
-                            <th>Price from</th>
-                            <th>Quantity</th>
-                            <th>Status</th>
-                            <th>Return / Replacement</th>
-                            <th>Created</th>
-                            <th>Actions</th>
+                            <th scope="col">Image</th>
+                            <th scope="col">Name / SKU</th>
+                            <th scope="col">Type</th>
+                            <th scope="col">Categories</th>
+                            <th scope="col">Price from</th>
+                            <th scope="col">Quantity</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Return / Replacement</th>
+                            <th scope="col">Created</th>
+                            <th scope="col">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -94,7 +77,8 @@
                                         class="badge text-bg-{{ $product->status ? 'success' : 'secondary' }}">{{ $product->status ? 'Active' : 'Inactive' }}</span>
                                 </td>
                                 <td class="small text-nowrap">
-                                    <div>Return: {{ $product->is_returnable ? $product->return_days . ' Days' : 'No' }}</div>
+                                    <div>Return: {{ $product->is_returnable ? $product->return_days . ' Days' : 'No' }}
+                                    </div>
                                     <div>Replacement:
                                         {{ $product->is_replaceable ? $product->replacement_days . ' Days' : 'No' }}</div>
                                 </td>
@@ -113,13 +97,15 @@
                                 </td>
                             </tr>
                         @empty<tr>
-                                <td colspan="10" class="text-center py-4">No products found.</td>
+                                <td colspan="10" class="listing-empty">No products found.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
-            <div class="p-3">{{ $products->links() }}</div>
+            @if ($products->hasPages())
+                <div class="listing-table-footer">{{ $products->links() }}</div>
+            @endif
         </section>
     </div>
 @endsection

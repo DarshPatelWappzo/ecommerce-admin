@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ListingFilterRequest;
 use App\Http\Requests\TenantCategorySaveRequest;
 use App\Models\Tenant\User;
 use App\Repositories\TenantCategoryRepository;
@@ -26,9 +27,10 @@ class TenantCategoryController extends Controller
     /**
      * List the tenant category records.
      *
+     * @param  ListingFilterRequest  $request  The validated listing filters.
      * @return View The response for this action.
      */
-    public function index(): View
+    public function index(ListingFilterRequest $request): View
     {
         $tenantUser = auth('tenant')->user();
         abort_unless($tenantUser instanceof User, 401);
@@ -37,7 +39,7 @@ class TenantCategoryController extends Controller
         $data = [];
         $data['tenantUser'] = $tenantUser;
         $data['tenantDomain'] = session('tenant_domain');
-        $data['categories'] = $this->tenantCategoryRepository->paginate();
+        $data['categories'] = $this->tenantCategoryRepository->paginate($request->validated());
         $data['canCreate'] = $this->tenantRoleRepository->userHasPermission($tenantUser, 'categories.create');
         $data['canEdit'] = $this->tenantRoleRepository->userHasPermission($tenantUser, 'categories.update');
 

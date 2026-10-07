@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ListingFilterRequest;
 use App\Http\Requests\TenantRoleStoreRequest;
 use App\Http\Requests\TenantRoleUpdateRequest;
 use App\Models\Tenant\Role;
@@ -29,13 +30,14 @@ class TenantRoleController extends Controller
     /**
      * List the tenant role records.
      *
+     * @param  ListingFilterRequest  $request  The validated listing filters.
      * @return View The response for this action.
      */
-    public function index(): View
+    public function index(ListingFilterRequest $request): View
     {
         $this->ensureCanManageRoles('roles.view');
         $data = $this->tenantViewData();
-        $data['roles'] = $this->tenantRoleRepository->allWithAssignmentCounts();
+        $data['roles'] = $this->tenantRoleRepository->allWithAssignmentCounts($request->validated());
 
         return view('tenant.roles.index', $data);
     }

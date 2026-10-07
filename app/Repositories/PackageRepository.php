@@ -11,7 +11,7 @@ class PackageRepository
     /**
      * Retrieve a paginated package list filtered by an optional search term.
      */
-    public function paginate(int $perPage = 10, ?string $search = null): LengthAwarePaginator
+    public function paginate(int $perPage = 10, ?string $search = null, ?string $status = null): LengthAwarePaginator
     {
         return Package::query()
             ->when($search !== null && $search !== '', function (Builder $query) use ($search): void {
@@ -25,6 +25,7 @@ class PackageRepository
                         ->orWhere('status', 'like', "%{$search}%");
                 });
             })
+            ->when($status !== null && $status !== '', fn(Builder $query) => $query->where('status', $status))
             ->latest()
             ->paginate($perPage)
             ->withQueryString();

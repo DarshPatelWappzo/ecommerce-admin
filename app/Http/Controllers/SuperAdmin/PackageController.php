@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ListingFilterRequest;
 use App\Http\Requests\SuperAdminPackageStoreRequest;
 use App\Http\Requests\SuperAdminPackageUpdateRequest;
 use App\Models\Package;
@@ -24,14 +25,15 @@ class PackageController extends Controller
     /**
      * Display a paginated list of packages.
      *
-     * @param  Request  $request  The incoming request.
+     * @param  ListingFilterRequest  $request  The incoming request.
      * @return View The response for this action.
      */
-    public function index(Request $request): View
+    public function index(ListingFilterRequest $request): View
     {
         $packages = $this->packageRepository->paginate(
             10,
-            $request->string('search')->trim()->toString(),
+            $request->validated('search'),
+            $request->validated('status'),
         );
 
         $data = [];

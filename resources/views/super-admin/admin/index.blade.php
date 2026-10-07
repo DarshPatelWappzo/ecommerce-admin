@@ -4,17 +4,24 @@
 
 @section('content')
     <div class="container-fluid">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div class="listing-page-header">
             <div>
                 {{-- <p class="text-primary fw-semibold mb-1">Super Admin</p> --}}
-                <h1 class="page-title mb-1">Users</h1>
+                <h1 class="page-title mb-0">Users</h1>
                 <p class="text-secondary mb-0">Manage users registered in your application.</p>
             </div>
-            <a class="btn btn-primary" href="{{ route('super-admin.admin.create') }}">
-                <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>
-                Add user
-            </a>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <a class="btn btn-primary" href="{{ route('super-admin.admin.create') }}">
+                    <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>
+                    Add user
+                </a>
+                <x-filter-button :filters="['search', 'status']" />
+            </div>
         </div>
+        <x-filter-offcanvas :action="route('super-admin.admin.index')" :filters="['search', 'status']">
+            <x-filter-field name="search" label="Search" type="search" maxlength="200" />
+            <x-filter-field name="status" label="Status" :options="['active' => 'Active', 'inactive' => 'Inactive']" />
+        </x-filter-offcanvas>
 
         @if (session('success'))
             <div class="alert alert-success" role="alert">{{ session('success') }}</div>
@@ -24,17 +31,10 @@
             <div class="alert alert-danger" role="alert">{{ session('error') }}</div>
         @endif
 
-        <div class="dashboard-card p-0 overflow-hidden" data-ajax-pagination-container>
-            <div class="p-3 border-bottom">
-                <label class="visually-hidden" for="user-search">Search users</label>
-                <div class="input-group">
-                    {{-- <span class="input-group-text"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span> --}}
-                    <input class="form-control" id="user-search" type="search" value="{{ request('search') }}"
-                        placeholder="Search users..." data-ajax-search>
-                </div>
-            </div>
+        <div class="dashboard-card listing-table-card" data-ajax-pagination-container>
+
             <div class="table-responsive">
-                <table class="table user-table align-middle mb-0">
+                <table class="table listing-table align-middle mb-0">
                     <thead>
                         <tr>
                             <th scope="col">S. No.</th>
@@ -113,14 +113,14 @@
                             </tr>
                         @empty
                             <tr>
-                                <td class="py-2 text-center text-secondary" colspan="9">No users found.</td>
+                                <td colspan="9" class="listing-empty">No users found.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
             @if ($users->hasPages())
-                <div class="border-top p-3">{{ $users->links() }}</div>
+                <div class="listing-table-footer">{{ $users->links() }}</div>
             @endif
         </div>
     </div>

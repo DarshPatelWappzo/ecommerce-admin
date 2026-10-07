@@ -2,25 +2,38 @@
 @section('title', 'Customers')
 @section('content')
     <div class="container-fluid">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="page-title">Customers</h1>
-            @if ($canCreate)
-                <a class="btn btn-primary" href="{{ route('tenant.customers.create') }}">Add customer</a>
-            @endif
-        </div>
-        @include('tenant.customers._notifications')
-        <section class="dashboard-card p-0 overflow-hidden" data-ajax-pagination-container>
-            <div class="p-3 border-bottom">
-                <label class="visually-hidden" for="tenant-customer-search">Search customers by code, name, email or mobile</label>
-                <input class="form-control" id="tenant-customer-search" type="search" value="{{ request('search') }}"
-                    placeholder="Search customers..." maxlength="254" data-ajax-search>
+        <div class="listing-page-header">
+            <h1 class="page-title mb-0">Customers</h1>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @if ($canCreate)
+                    <a class="btn btn-primary" href="{{ route('tenant.customers.create') }}">Add customer</a>
+                @endif
+                <x-filter-button :filters="['search', 'status', 'customer_type', 'joined_from', 'joined_to']" />
             </div>
+        </div>
+        <x-filter-offcanvas :show-errors="false" :action="route('tenant.customers.index')" :filters="['search', 'status', 'customer_type', 'joined_from', 'joined_to', 'sort', 'direction']">
+            <x-filter-field name="search" label="Search" type="search" maxlength="200" />
+            <x-filter-field name="status" label="Status" :options="['active' => 'Active', 'inactive' => 'Inactive']" />
+            <x-filter-field name="customer_type" label="Customer type" :options="['individual' => 'Individual', 'business' => 'Business']" />
+            <x-filter-field name="joined_from" label="Joined from" type="date" />
+            <x-filter-field name="joined_to" label="Joined to" type="date" />
+            <x-filter-field name="sort" label="Sort" :options="[
+                'created_at' => 'Created date',
+                'customer_code' => 'Customer code',
+                'first_name' => 'First name',
+            ]" />
+            <x-filter-field name="direction" label="Direction" :options="['asc' => 'Ascending', 'desc' => 'Descending']" />
+        </x-filter-offcanvas>
+
+        @include('tenant.customers._notifications')
+        <section class="dashboard-card listing-table-card" data-ajax-pagination-container>
+
             <div class="table-responsive">
-                <table class="table align-middle mb-0">
+                <table class="table listing-table align-middle mb-0">
                     <thead>
                         <tr>
                             @foreach (['Customer code', 'Customer name', 'Email', 'Mobile', 'Type', 'Status', 'Joined date', 'Actions'] as $heading)
-                                <th>{{ $heading }}</th>
+                                <th scope="col">{{ $heading }}</th>
                             @endforeach
                         </tr>
                     </thead>
@@ -45,14 +58,15 @@
                                 </td>
                             </tr>
                         @empty<tr>
-                                <td colspan="8" class="text-center text-secondary py-4">No customers found. Try another search or add a customer.</td>
+                                <td colspan="8" class="listing-empty">No customers found. Try another search or add a
+                                    customer.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
             @if ($customers->hasPages())
-                <div class="border-top p-3">{{ $customers->links() }}</div>
+                <div class="listing-table-footer">{{ $customers->links() }}</div>
             @endif
         </section>
     </div>
