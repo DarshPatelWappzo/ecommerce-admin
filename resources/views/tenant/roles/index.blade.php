@@ -7,16 +7,23 @@
 
 @section('content')
     <div class="container-fluid">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div class="listing-page-header">
             <div>
                 <p class="text-primary fw-semibold mb-1">Tenant Administration</p>
-                <h1 class="page-title mb-1">Roles</h1>
+                <h1 class="page-title mb-0">Roles</h1>
                 <p class="text-secondary mb-0">Manage roles and their permissions.</p>
             </div>
-            <a class="btn btn-primary" href="{{ route('tenant.roles.create') }}">
-                <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Add role
-            </a>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <a class="btn btn-primary" href="{{ route('tenant.roles.create') }}">
+                    <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Add role
+                </a>
+                <x-filter-button :filters="['search', 'status']" />
+            </div>
         </div>
+        <x-filter-offcanvas :action="route('tenant.roles.index')" :filters="['search', 'status']">
+            <x-filter-field name="search" label="Search" type="search" maxlength="200" />
+            <x-filter-field name="status" label="Status" :options="['1' => 'Active', '0' => 'Inactive']" />
+        </x-filter-offcanvas>
 
         @if (session('success'))
             <div class="alert alert-success" role="alert">{{ session('success') }}</div>
@@ -25,18 +32,18 @@
             <div class="alert alert-danger" role="alert">{{ session('error') }}</div>
         @endif
 
-        <section class="dashboard-card p-0 overflow-hidden">
+        <section class="dashboard-card listing-table-card">
             <div class="table-responsive">
-                <table class="table align-middle mb-0">
+                <table class="table listing-table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Role name</th>
-                            <th>Description</th>
-                            <th>Status</th>
-                            <th>Permissions</th>
-                            <th>Users</th>
-                            <th>Action</th>
+                            <th scope="col">#</th>
+                            <th scope="col">Role name</th>
+                            <th scope="col">Description</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Permissions</th>
+                            <th scope="col">Users</th>
+                            <th scope="col">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -72,7 +79,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td class="text-center text-secondary py-4" colspan="7">No roles found.</td>
+                                <td colspan="7" class="listing-empty">No roles found.</td>
                             </tr>
                         @endforelse
                     </tbody>

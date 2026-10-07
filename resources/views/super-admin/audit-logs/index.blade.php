@@ -4,16 +4,28 @@
 
 @section('content')
     <div class="container-fluid">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div class="listing-page-header">
             <div>
-                <h1 class="page-title mb-1">Audit Logs</h1>
+                <h1 class="page-title mb-0">Audit Logs</h1>
                 <p class="text-secondary mb-0">Review changes made by administrators.</p>
             </div>
-        </div>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <x-filter-button :filters="['user_id', 'action', 'module', 'date']" />
 
-        <div class="dashboard-card p-0 overflow-hidden" data-ajax-pagination-container>
+            </div>
+        </div>
+        <x-filter-offcanvas :action="route('super-admin.audit-logs.index')" :filters="['user_id', 'action', 'module', 'date']">
+            <x-filter-field name="user_id" label="User" :options="$users->mapWithKeys(
+                fn($user) => [$user->id => $user->name ?: trim($user->first_name . ' ' . $user->last_name)],
+            )" />
+            <x-filter-field name="action" label="Action" :options="['created' => 'Created', 'updated' => 'Updated', 'deleted' => 'Deleted']" />
+            <x-filter-field name="module" label="Module" maxlength="100" />
+            <x-filter-field name="date" label="Date" type="date" />
+        </x-filter-offcanvas>
+
+        <div class="dashboard-card listing-table-card" data-ajax-pagination-container>
             <div class="table-responsive">
-                <table class="table user-table align-middle mb-0">
+                <table class="table listing-table align-middle mb-0">
                     <thead>
                         <tr>
                             <th scope="col">Sr. No.</th>
@@ -42,7 +54,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td class="py-5 text-center text-secondary" colspan="5">No audit logs found.</td>
+                                <td colspan="5" class="listing-empty">No audit logs found.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -50,7 +62,7 @@
             </div>
 
             @if ($auditLogs->hasPages())
-                <div class="border-top p-3">{{ $auditLogs->links() }}</div>
+                <div class="listing-table-footer">{{ $auditLogs->links() }}</div>
             @endif
 
             @foreach ($auditLogs as $auditLog)

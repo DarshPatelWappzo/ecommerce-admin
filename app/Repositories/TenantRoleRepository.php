@@ -6,6 +6,7 @@ use App\Models\Tenant\Role;
 use App\Models\Tenant\User;
 use App\Services\TenantAuditAction;
 use App\Services\TenantAuditLogService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -27,14 +28,19 @@ class TenantRoleRepository
     }
 
     /**
-     * Retrieve all tenant roles with their assignment counts.
+     * Retrieve tenant roles with their assignment counts and optional filters.
      *
+     * @param  array{search?: ?string, status?: bool|int|string|null}  $filters
      * @return Collection<int, Role>
      */
-    public function allWithAssignmentCounts(): Collection
+    public function allWithAssignmentCounts(array $filters = []): Collection
     {
         return Role::query()
             ->withCount(['permissions', 'users'])
+            ->when(filled($filters['search'] ?? null), fn (Builder $query): Builder => $query->where(function (Builder $query) use ($filters): void {
+                $query->where('name', 'like', '%'.$filters['search'].'%')->orWhere('description', 'like', '%'.$filters['search'].'%');
+            }))
+            ->when(isset($filters['status']), fn (Builder $query): Builder => $query->where('status', $filters['status']))
             ->latest()
             ->get();
     }

@@ -2,30 +2,41 @@
 @section('title', 'Coupons')
 @section('content')
     <div class="container-fluid">
-        <div class="d-flex justify-content-between mb-4">
-            <h1 class="page-title">Coupons</h1>
-            @if ($canCreate)
-                <a class="btn btn-primary" href="{{ route('tenant.coupons.create') }}">Add coupon</a>
-            @endif
-        </div>
-        @include('tenant.customers._notifications')
-        @include('tenant.partials.validation-errors')
-        <section class="dashboard-card p-0 overflow-hidden" data-ajax-pagination-container>
-            <div class="p-3 border-bottom">
-                <label class="visually-hidden" for="tenant-coupon-search">Search coupons</label>
-                <input class="form-control" id="tenant-coupon-search" type="search" value="{{ request('search') }}"
-                    placeholder="Search coupons..." data-ajax-search>
+        <div class="listing-page-header">
+            <h1 class="page-title mb-0">Coupons</h1>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @if ($canCreate)
+                    <a class="btn btn-primary" href="{{ route('tenant.coupons.create') }}">Add coupon</a>
+                @endif
+                <x-filter-button :filters="['search', 'discount_type', 'status', 'from', 'to']" />
             </div>
+        </div>
+        <x-filter-offcanvas :show-errors="false" :action="route('tenant.coupons.index')" :filters="['search', 'discount_type', 'status', 'from', 'to']">
+            <x-filter-field name="search" label="Code or description" type="search" maxlength="200" />
+            <x-filter-field name="discount_type" label="Discount type" :options="['fixed' => 'Fixed', 'percentage' => 'Percentage']" />
+            <x-filter-field name="status" label="Availability" :options="[
+                'active' => 'Active',
+                'scheduled' => 'Scheduled',
+                'expired' => 'Expired',
+                'disabled' => 'Disabled',
+            ]" />
+            <x-filter-field name="from" label="Valid during from" type="date" />
+            <x-filter-field name="to" label="Valid during to" type="date" />
+        </x-filter-offcanvas>
+
+        @include('tenant.customers._notifications')
+        <section class="dashboard-card listing-table-card" data-ajax-pagination-container>
+
             <div class="table-responsive">
-                <table class="table align-middle mb-0">
+                <table class="table listing-table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Code</th>
-                            <th>Discount</th>
-                            <th>Status</th>
-                            <th>Validity</th>
-                            <th>Usage</th>
-                            <th>Actions</th>
+                            <th scope="col">Code</th>
+                            <th scope="col">Discount</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Validity</th>
+                            <th scope="col">Usage</th>
+                            <th scope="col">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -56,14 +67,14 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-muted">No coupons found.</td>
+                                <td colspan="6" class="listing-empty">No coupons found.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
             @if ($coupons->hasPages())
-                <div class="border-top p-3">{{ $coupons->links() }}</div>
+                <div class="listing-table-footer">{{ $coupons->links() }}</div>
             @endif
         </section>
     </div>

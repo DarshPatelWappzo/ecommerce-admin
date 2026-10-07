@@ -27,6 +27,7 @@ class TenantReplacementController extends Controller
             return response()->json($data);
         }
         $data = ['replacements' => $data, 'tenantUser' => $request->actor(), 'tenantDomain' => session('tenant_domain'), 'canCreate' => $request->allowed('replacements.create'), 'reasons' => ReturnReason::where('status', true)->orderBy('sort_order')->get()];
+        $data['customerOptions'] = $records->customerFilterOptions();
         $data['createOrder'] = $data['canCreate'] && $request->filled('create_order_number') ? $records->deliveredOrder($request->validated('create_order_number')) : null;
 
         return view('tenant.replacements.index', $data);

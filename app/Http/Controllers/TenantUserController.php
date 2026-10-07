@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ListingFilterRequest;
 use App\Http\Requests\TenantUserStoreRequest;
 use App\Http\Requests\TenantUserUpdateRequest;
 use App\Models\Tenant\User;
@@ -29,10 +30,10 @@ class TenantUserController extends Controller
     /**
      * List the tenant user records.
      *
-     * @param  Request  $request  The incoming request.
+     * @param  ListingFilterRequest  $request  The incoming request.
      * @return View The response for this action.
      */
-    public function index(Request $request): View
+    public function index(ListingFilterRequest $request): View
     {
         $this->ensureHasPermission('users.view');
 
@@ -40,7 +41,8 @@ class TenantUserController extends Controller
         $data['canDeleteUsers'] = $this->tenantRoleRepository->userHasPermission(auth('tenant')->user(), 'users.delete');
         $data['users'] = $this->tenantUserRepository->paginate(
             10,
-            $request->string('search')->trim()->toString(),
+            $request->validated('search'),
+            $request->validated('status'),
         );
 
         return view('tenant.users.index', $data);

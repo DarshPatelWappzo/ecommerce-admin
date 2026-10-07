@@ -2,63 +2,65 @@
 @section('title', 'Invoices')
 @section('content')
     <div class="container-fluid">
-        <div class="d-flex justify-content-between mb-4">
-            <h1 class="page-title">Invoices</h1>
-            @if ($permissions['create'])
-                <a class="btn btn-primary" href="{{ route('tenant.invoices.create') }}">Prepare invoice</a>
-            @endif
+        <div class="listing-page-header">
+            <h1 class="page-title mb-0">Invoices</h1>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @if ($permissions['create'])
+                    <a class="btn btn-primary" href="{{ route('tenant.invoices.create') }}">Prepare invoice</a>
+                @endif
+                <x-filter-button :filters="['search', 'number', 'order_id', 'customer_name', 'status', 'mode', 'from', 'to']" />
+            </div>
         </div>
+        <x-filter-offcanvas :show-errors="false" :action="route('tenant.invoices.index')" :filters="['search', 'number', 'order_id', 'customer_name', 'status', 'mode', 'from', 'to']">
+            <x-filter-field name="search" label="Search" type="search" maxlength="200" />
+            <x-filter-field name="number" label="Invoice number" maxlength="16" />
+            <x-filter-field name="order_id" label="Order ID" type="number" min="1" />
+            <x-filter-field name="customer_name" label="Customer name" maxlength="201" />
+            <x-filter-field name="status" label="Status" :options="['draft' => 'Draft', 'issued' => 'Issued']" />
+            <x-filter-field name="mode" label="Mode" :options="['automatic' => 'Automatic', 'manual' => 'Manual']" />
+            <x-filter-field name="from" label="Invoice date from" type="date" />
+            <x-filter-field name="to" label="Invoice date to" type="date" />
+        </x-filter-offcanvas>
+
         @include('tenant.customers._notifications')
-        @include('tenant.partials.validation-errors')
-        {{-- <form method="GET" class="dashboard-card mb-4">
-        <div class="row g-3">
-            @foreach (['search' => 'Search', 'number' => 'Invoice number', 'order_id' => 'Order ID', 'customer_name' => 'Customer', 'from' => 'From date', 'to' => 'To date'] as $field => $label)
-            <div class="col-md-3"><label class="form-label" for="{{ $field }}">{{ $label }}</label>
-                <input id="{{ $field }}" class="form-control" name="{{ $field }}" type="{{ in_array($field, ['from','to']) ? 'date' : ($field === 'order_id' ? 'number' : 'text') }}" value="{{ request($field) }}">
-            </div>
-            @endforeach
-            @foreach (['status' => ['draft', 'issued'], 'mode' => ['manual', 'automatic']] as $field => $values)
-            <div class="col-md-3"><label class="form-label" for="{{ $field }}">{{ ucfirst($field) }}</label>
-                <select class="form-select" id="{{ $field }}" name="{{ $field }}"><option value="">All</option>
-                @foreach ($values as $value)<option value="{{ $value }}" @selected(request($field) === $value)>{{ ucfirst($value) }}</option>@endforeach
-                </select>
-            </div>
-            @endforeach
-        </div>
-        <button class="btn btn-primary mt-3">Filter</button> <a class="btn btn-light mt-3" href="{{ route('tenant.invoices.index') }}">Reset</a>
-    </form> --}}
-        <div class="dashboard-card table-responsive">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Invoice</th>
-                        <th>Order</th>
-                        <th>Customer</th>
-                        <th>Date</th>
-                        <th>Status / mode</th>
-                        <th>Total</th>
-                        <th>Current payment</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($invoices as $invoice)
+
+        <div class="dashboard-card listing-table-card">
+            <div class="table-responsive">
+                <table class="table listing-table align-middle mb-0">
+                    <thead>
                         <tr>
-                            <td><a
-                                    href="{{ route('tenant.invoices.show', $invoice) }}">{{ $invoice->number ?? 'Draft #' . $invoice->id }}</a>
-                            </td>
-                            <td>{{ $invoice->order->order_number }}</td>
-                            <td>{{ $invoice->customer_name }}</td>
-                            <td>{{ $invoice->invoice_date->format('d M Y') }}</td>
-                            <td>{{ ucfirst($invoice->status) }} / {{ $invoice->mode }}</td>
-                            <td>{{ $invoice->currency }} {{ $invoice->grand_total }}</td>
-                            <td>{{ $invoice->order->payment_status }}</td>
+                            <th scope="col">Invoice</th>
+                            <th scope="col">Order</th>
+                            <th scope="col">Customer</th>
+                            <th scope="col">Date</th>
+                            <th scope="col">Status / mode</th>
+                            <th scope="col">Total</th>
+                            <th scope="col">Current payment</th>
                         </tr>
-                    @empty<tr>
-                            <td colspan="7" class="text-muted">No invoices found.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>{{ $invoices->links() }}
+                    </thead>
+                    <tbody>
+                        @forelse($invoices as $invoice)
+                            <tr>
+                                <td><a
+                                        href="{{ route('tenant.invoices.show', $invoice) }}">{{ $invoice->number ?? 'Draft #' . $invoice->id }}</a>
+                                </td>
+                                <td>{{ $invoice->order->order_number }}</td>
+                                <td>{{ $invoice->customer_name }}</td>
+                                <td>{{ $invoice->invoice_date->format('d M Y') }}</td>
+                                <td>{{ ucfirst($invoice->status) }} / {{ $invoice->mode }}</td>
+                                <td>{{ $invoice->currency }} {{ $invoice->grand_total }}</td>
+                                <td>{{ $invoice->order->payment_status }}</td>
+                            </tr>
+                        @empty<tr>
+                                <td colspan="7" class="listing-empty">No invoices found.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            @if ($invoices->hasPages())
+                <div class="listing-table-footer">{{ $invoices->links() }}</div>
+            @endif
         </div>
     </div>
 @endsection

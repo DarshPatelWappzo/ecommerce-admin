@@ -31,7 +31,7 @@ class TenantUserRepository
     /**
      * Retrieve a paginated tenant-user list filtered by an optional search term.
      */
-    public function paginate(int $perPage = 10, ?string $search = null): LengthAwarePaginator
+    public function paginate(int $perPage = 10, ?string $search = null, ?string $status = null): LengthAwarePaginator
     {
         return User::query()
             ->with('roles:id,name')
@@ -43,6 +43,7 @@ class TenantUserRepository
                         ->orWhere('mobile_number', 'like', "%{$search}%");
                 });
             })
+            ->when($status !== null && $status !== '', fn (Builder $query) => $query->where('status', $status))
             ->latest()
             ->paginate($perPage)
             ->withQueryString();

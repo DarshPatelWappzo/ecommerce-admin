@@ -7,26 +7,36 @@
 
 @section('content')
     <div class="container-fluid">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div class="listing-page-header">
             <div>
                 <p class="text-primary fw-semibold mb-1">Tenant Administration</p>
-                <h1 class="page-title mb-1">Categories</h1>
+                <h1 class="page-title mb-0">Categories</h1>
                 <p class="text-secondary mb-0">Browse your product categories.</p>
             </div>
-            @if ($canCreate)
-                <a class="btn btn-primary mt-3" href="{{ route('tenant.categories.create') }}">
-                    <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Add category
-                </a>
-            @endif
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @if ($canCreate)
+                    <a class="btn btn-primary" href="{{ route('tenant.categories.create') }}">
+                        <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Add category
+                    </a>
+                @endif
+                <x-filter-button :filters="['search', 'parent_id', 'status', 'from', 'to']" />
+            </div>
         </div>
+        <x-filter-offcanvas :action="route('tenant.categories.index')" :filters="['search', 'parent_id', 'status', 'from', 'to']">
+            <x-filter-field name="search" label="Search" type="search" maxlength="200" />
+            <x-filter-field name="parent_id" label="Parent category ID" type="number" min="1" />
+            <x-filter-field name="status" label="Status" :options="['1' => 'Active', '0' => 'Inactive']" />
+            <x-filter-field name="from" label="Created from" type="date" />
+            <x-filter-field name="to" label="Created to" type="date" />
+        </x-filter-offcanvas>
 
         @if (session('success'))
             <div class="alert alert-success" role="alert">{{ session('success') }}</div>
         @endif
 
-        <section class="dashboard-card p-0 overflow-hidden">
+        <section class="dashboard-card listing-table-card">
             <div class="table-responsive">
-                <table class="table align-middle mb-0">
+                <table class="table listing-table align-middle mb-0">
                     <thead>
                         <tr>
                             <th scope="col">Sr No</th>
@@ -55,14 +65,14 @@
                             </tr>
                         @empty
                             <tr>
-                                <td class="text-center text-secondary py-4" colspan="4">No categories found.</td>
+                                <td colspan="4" class="listing-empty">No categories found.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
             @if ($categories->hasPages())
-                <div class="p-3 border-top">
+                <div class="listing-table-footer">
                     {{ $categories->links() }}
                 </div>
             @endif
