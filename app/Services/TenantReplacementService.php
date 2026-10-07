@@ -19,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 
 class TenantReplacementService
 {
-    public function __construct(private readonly TenantReplacementEligibilityService $eligibility, private readonly TenantOrderRepository $orders, private readonly TenantRefundCalculationService $calculator, private readonly AuditLogService $audit) {}
+    public function __construct(private readonly TenantReplacementEligibilityService $eligibility, private readonly TenantOrderRepository $orders, private readonly TenantRefundCalculationService $calculator, private readonly TenantAuditLogService $audit) {}
 
     /** @param array<string, mixed> $input Validated reason and quantity, never a substitute SKU. */
     public function create(int $orderId, int $itemId, Customer $customer, array $input, ?User $actor = null): ReplacementRequest
@@ -37,7 +37,7 @@ class TenantReplacementService
             }
             ReturnReason::where('status', true)->findOrFail($input['reason_id']);
             $record = ReplacementRequest::create([
-                'replacement_number' => 'REP-' . now()->format('Ym') . '-' . Str::ulid(),
+                'replacement_number' => 'REP-'.now()->format('Ym').'-'.Str::ulid(),
                 'order_id' => $order->id,
                 'order_item_id' => $item->id,
                 'customer_id' => $customer->id,
@@ -70,7 +70,7 @@ class TenantReplacementService
                 throw ValidationException::withMessages(['status' => 'Cancellation is only available before pickup.']);
             }
             if ($target === 'converted_to_refund' || ! in_array($target, ReplacementRequest::TRANSITIONS[$from] ?? [], true)) {
-                throw ValidationException::withMessages(['status' => 'This replacement cannot move from ' . $from . ' to ' . $target . '.']);
+                throw ValidationException::withMessages(['status' => 'This replacement cannot move from '.$from.' to '.$target.'.']);
             }
             if (in_array($target, ['rejected', 'qc_failed'], true) && empty($input['admin_note'])) {
                 throw ValidationException::withMessages(['admin_note' => 'Explain the rejection or failed inspection.']);
@@ -110,7 +110,7 @@ class TenantReplacementService
                 if (! $record->stock_reserved || ! $variant || $variant->trashed() || $variant->sku !== $record->item->sku || $variant->reserved_quantity < $record->quantity || $variant->quantity < $record->quantity) {
                     throw ValidationException::withMessages(['stock' => 'Reserved stock is unavailable. Resolve inventory before dispatch.']);
                 }
-                $record->shipment()->create([...Arr::only($input, ['courier_name', 'tracking_number', 'tracking_url']), 'order_id' => $record->order_id, 'shipment_key' => 'replacement-' . $record->id, 'status' => 'shipped', 'shipped_at' => now()]);
+                $record->shipment()->create([...Arr::only($input, ['courier_name', 'tracking_number', 'tracking_url']), 'order_id' => $record->order_id, 'shipment_key' => 'replacement-'.$record->id, 'status' => 'shipped', 'shipped_at' => now()]);
                 $this->stock($record, $variant, 'ship', -$record->quantity, -$record->quantity);
                 $fields['stock_reserved'] = false;
             }
@@ -120,7 +120,7 @@ class TenantReplacementService
             $timestamp = match ($target) {
                 'qc_passed', 'qc_failed' => 'qc_completed_at',
                 'replacement_processing' => 'processing_at',
-                default => $target . '_at',
+                default => $target.'_at',
             };
             $record->update([...$fields, 'status' => $target, $timestamp => now()]);
             $this->recordChange($record, $from, $actor, $input['admin_note'] ?? null);
@@ -144,7 +144,7 @@ class TenantReplacementService
             }
             $calculation = $this->calculator->calculate($record->item, $record->quantity);
             $return = ReturnRequest::create([
-                'return_number' => 'RET-' . now()->format('Ym') . '-' . Str::ulid(),
+                'return_number' => 'RET-'.now()->format('Ym').'-'.Str::ulid(),
                 'order_id' => $record->order_id,
                 'order_item_id' => $record->order_item_id,
                 'customer_id' => $record->customer_id,
@@ -160,7 +160,7 @@ class TenantReplacementService
                 'inventory_disposition' => $record->inventory_disposition,
                 'refund_amount' => $calculation['total_amount'],
                 'calculation' => $calculation,
-                'admin_note' => 'Converted from replacement ' . $record->replacement_number,
+                'admin_note' => 'Converted from replacement '.$record->replacement_number,
             ]);
             $record->update(['status' => 'converted_to_refund', 'return_request_id' => $return->id, 'converted_at' => now()]);
             $this->audit->recordSnapshot($return, 'replacement_converted', null, ['replacement_request_id' => $record->id, 'status' => $return->status]);
@@ -178,13 +178,13 @@ class TenantReplacementService
     private function stock(ReplacementRequest $record, ProductVariant $variant, string $event, int $quantity, int $reserved): void
     {
         $this->orders->stock($record->order, $variant, $event, $quantity, $reserved, $record->id);
-        $this->audit->recordSnapshot($record, 'inventory_' . $event, null, ['product_variant_id' => $variant->id, 'quantity_delta' => $quantity, 'reserved_delta' => $reserved]);
+        $this->audit->recordSnapshot($record, 'inventory_'.$event, null, ['product_variant_id' => $variant->id, 'quantity_delta' => $quantity, 'reserved_delta' => $reserved]);
     }
 
     private function recordChange(ReplacementRequest $record, ?string $from, User|Customer $actor, ?string $note = null): void
     {
         $record->histories()->create(['from_status' => $from, 'to_status' => $record->status, 'changed_by' => $actor instanceof User ? $actor->id : null, 'customer_id' => $actor instanceof Customer ? $actor->id : null, 'note' => $note, 'created_at' => now()]);
-        $this->audit->recordSnapshot($record, $record->status, $from ? ['status' => $from] : null, ['status' => $record->status, 'actor_id' => $actor->id, 'actor_type' => $actor::class]);
+        $this->audit->recordSnapshot($record, $record->status, $from ? ['status' => $from] : null, ['status' => $record->status, 'actor_id' => $actor->id, 'actor_type' => $actor::class], $actor);
         $email = $record->customer?->email;
         $mail = new ReplacementStatusChanged($record->replacement_number, $record->status);
         if ($email) {

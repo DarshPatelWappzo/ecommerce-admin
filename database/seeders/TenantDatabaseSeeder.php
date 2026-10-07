@@ -12,6 +12,7 @@ class TenantDatabaseSeeder extends Seeder
     {
         $permissions = collect([
             'dashboard.view',
+            'audit_logs.view',
             'coupons.view',
             'coupons.create',
             'coupons.update',

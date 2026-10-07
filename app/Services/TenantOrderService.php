@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 class TenantOrderService
 {
-    public function __construct(private readonly TenantOrderRepository $orders, private readonly TenantOrderCalculationService $calculator, private readonly AuditLogService $audit, private readonly TenantCouponService $coupons) {}
+    public function __construct(private readonly TenantOrderRepository $orders, private readonly TenantOrderCalculationService $calculator, private readonly TenantAuditLogService $audit, private readonly TenantCouponService $coupons) {}
 
     /**
      * Create or update a draft order and persist the validated pricing snapshot.
@@ -28,6 +28,7 @@ class TenantOrderService
     {
         return DB::connection('tenant')->transaction(function () use ($input, $actor, $source, $id): Order {
             $order = $id ? $this->orders->find($id, true) : new Order;
+            $before = $id ? $order->only(['status', 'grand_total']) : null;
             if ($id && $order->invoice()->exists()) {
                 throw ValidationException::withMessages(['order' => 'An invoice snapshot exists. Order financial changes are blocked.']);
             }
@@ -55,15 +56,18 @@ class TenantOrderService
                 'internal_note' => $input['internal_note'] ?? null,
             ];
             if (! $id) {
-                $data += ['order_number' => 'ORD-' . Str::ulid(), 'order_date' => now(), 'source' => $source, 'status' => 'draft', 'payment_status' => 'unpaid', 'created_by' => $actor->id];
+                $data += ['order_number' => 'ORD-'.Str::ulid(), 'order_date' => now(), 'source' => $source, 'status' => 'draft', 'payment_status' => 'unpaid', 'created_by' => $actor->id];
             }
             $this->orders->save($order, $data);
             $this->orders->replaceDetails($order, $calculation['items'], $addresses);
-            $order->payments()->updateOrCreate(['status' => 'pending', 'reference_number' => null, 'gateway' => null], ['method' => $input['payment_method'], 'amount' => $order->grand_total, 'currency' => 'INR', 'recorded_by' => $actor->id]);
+            $pendingPayment = $order->payments()->where('status', 'pending')->whereNull('reference_number')->whereNull('gateway')->first();
+            $paymentBefore = $pendingPayment?->only(['status', 'method', 'amount', 'currency']);
+            $payment = $order->payments()->updateOrCreate(['status' => 'pending', 'reference_number' => null, 'gateway' => null], ['method' => $input['payment_method'], 'amount' => $order->grand_total, 'currency' => 'INR', 'recorded_by' => $actor->id]);
+            $this->audit->recordSnapshot($payment, $paymentBefore === null ? TenantAuditAction::CREATED : TenantAuditAction::PAYMENT_UPDATED, $paymentBefore, $payment->only(['status', 'method', 'amount', 'currency']), $actor);
             if (! $id) {
                 $order->histories()->create(['from_status' => null, 'to_status' => 'draft', 'changed_by' => $actor->id, 'created_at' => now()]);
             }
-            $this->audit->recordSnapshot($order, $id ? 'updated' : 'created', null, ['status' => 'draft', 'grand_total' => $order->grand_total]);
+            $this->audit->recordSnapshot($order, $id ? TenantAuditAction::UPDATED : TenantAuditAction::CREATED, $before, ['status' => 'draft', 'grand_total' => $order->grand_total], $actor);
             if ($submitAs !== 'draft') {
                 $this->transition($order->id, $submitAs, $actor);
             }
@@ -85,9 +89,9 @@ class TenantOrderService
 
             return [
                 'customer_id' => $customer->id,
-                'customer_name' => trim($customer->first_name . ' ' . $customer->last_name),
+                'customer_name' => trim($customer->first_name.' '.$customer->last_name),
                 'customer_email' => $customer->email,
-                'customer_phone' => $customer->phone ? trim($customer->phone_country_code . ' ' . $customer->phone) : null,
+                'customer_phone' => $customer->phone ? trim($customer->phone_country_code.' '.$customer->phone) : null,
                 'company_name' => $customer->company_name,
                 'gstin' => $customer->gstin,
             ];
@@ -120,7 +124,7 @@ class TenantOrderService
             throw ValidationException::withMessages(['shipping' => 'Supply both addresses or select same as billing.']);
         }
 
-        return array_map(fn(string $type, array $address): array => ['type' => $type, ...$address, 'state_name' => config('customer_locations.IN.states.' . $address['state_code'])], ['billing', 'shipping'], [$billing, $shipping]);
+        return array_map(fn (string $type, array $address): array => ['type' => $type, ...$address, 'state_name' => config('customer_locations.IN.states.'.$address['state_code'])], ['billing', 'shipping'], [$billing, $shipping]);
     }
 
     /**
@@ -147,7 +151,7 @@ class TenantOrderService
                 throw ValidationException::withMessages(['order' => 'A gateway checkout is active for this order. Reconcile it before cancellation; gateway refunds are not supported.']);
             }
             if (! in_array($target, Order::TRANSITIONS[$from], true)) {
-                throw ValidationException::withMessages(['status' => 'This order cannot move from ' . $from . ' to ' . $target . '.']);
+                throw ValidationException::withMessages(['status' => 'This order cannot move from '.$from.' to '.$target.'.']);
             }
             if ($target === 'delivered' && ($order->payment_status !== 'paid' || ! $this->captured($order)->isEqualTo($order->grand_total))) {
                 throw ValidationException::withMessages(['payment_status' => 'Collect or verify the full payment before marking this order as delivered.']);
@@ -179,7 +183,7 @@ class TenantOrderService
                         throw ValidationException::withMessages(['items' => 'Every ordered product, variant and tax must be available at confirmation.']);
                     }
                     if ($stockAction === 'reserve' && $variant->quantity - $variant->reserved_quantity < $item->quantity) {
-                        throw ValidationException::withMessages(['items' => 'Insufficient available stock for ' . $item->sku . '.']);
+                        throw ValidationException::withMessages(['items' => 'Insufficient available stock for '.$item->sku.'.']);
                     }
                     if ($stockAction !== 'reserve' && ($variant->reserved_quantity < $item->quantity || ($stockAction === 'ship' && $variant->quantity < $item->quantity))) {
                         throw ValidationException::withMessages(['items' => 'Inventory no longer matches the reservation. Resolve it before continuing.']);
@@ -204,7 +208,7 @@ class TenantOrderService
             }
             $this->orders->save($order, $fields);
             $order->histories()->create(['from_status' => $from, 'to_status' => $target, 'comment' => $data['comment'] ?? null, 'changed_by' => $actor->id, 'created_at' => now()]);
-            $this->audit->recordSnapshot($order, 'status_changed', ['status' => $from], ['status' => $target]);
+            $this->audit->recordSnapshot($order, TenantAuditAction::STATUS_CHANGED, ['status' => $from], ['status' => $target], $actor);
 
             return $this->orders->details($id);
         }, 3);
@@ -262,7 +266,7 @@ class TenantOrderService
             if ($status === 'paid') {
                 $order->payments()->where('status', 'pending')->whereNull('gateway_payment_id')->update(['status' => 'superseded']);
             }
-            $this->audit->recordSnapshot($order, 'payment_recorded', null, ['payment_id' => $payment->id, 'amount' => $payment->amount, 'payment_status' => $status]);
+            $this->audit->recordSnapshot($payment, TenantAuditAction::CREATED, null, ['order_id' => $order->id, 'order_number' => $order->order_number, 'status' => $payment->status, 'method' => $payment->method, 'amount' => $payment->amount, 'payment_status' => $status], $actor);
 
             return $this->orders->details($id);
         }, 3);

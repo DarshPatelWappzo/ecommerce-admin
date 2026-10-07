@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 class TenantRefundService
 {
-    public function __construct(private readonly RazorpayRefundGateway $gateway, private readonly AuditLogService $audit) {}
+    public function __construct(private readonly RazorpayRefundGateway $gateway, private readonly TenantAuditLogService $audit) {}
 
     /** Reserve the immutable item amount under the order lock before contacting the gateway. */
     public function initiate(int $returnId, User $actor, bool $retry = false): Refund
@@ -62,8 +62,8 @@ class TenantRefundService
                         throw ValidationException::withMessages(['refund' => 'The refund exceeds the original gateway payment balance.']);
                     }
                 }
-                $refund = Refund::create(['refund_number' => 'RFN-' . now()->format('Ym') . '-' . Str::ulid(), 'return_request_id' => $return->id, 'order_id' => $order->id, 'payment_id' => $payment->id, 'amount' => (string) $amount, 'currency' => $order->currency, 'payment_method' => $payment->method, 'gateway' => $payment->gateway === 'razorpay' ? 'razorpay' : null, 'status' => 'pending', 'initiated_at' => now(), 'created_by' => $actor->id]);
-                $this->audit->recordSnapshot($refund, 'initiated', null, ['amount' => $refund->amount, 'actor_id' => $actor->id]);
+                $refund = Refund::create(['refund_number' => 'RFN-'.now()->format('Ym').'-'.Str::ulid(), 'return_request_id' => $return->id, 'order_id' => $order->id, 'payment_id' => $payment->id, 'amount' => (string) $amount, 'currency' => $order->currency, 'payment_method' => $payment->method, 'gateway' => $payment->gateway === 'razorpay' ? 'razorpay' : null, 'status' => 'pending', 'initiated_at' => now(), 'created_by' => $actor->id]);
+                $this->audit->recordSnapshot($refund, 'initiated', null, ['amount' => $refund->amount, 'actor_id' => $actor->id], $actor);
                 $this->setReturnStatus($return, 'refund_pending');
             }
             if ($refund->gateway === 'razorpay') {
@@ -71,7 +71,7 @@ class TenantRefundService
                 $refund->update(['status' => 'processing', 'gateway_refund_id' => null, 'failure_code' => null, 'failure_reason' => null, 'failed_at' => null]);
                 $this->setReturnStatus($return, 'refund_processing');
                 $dispatch = true;
-                $this->audit->recordSnapshot($refund, $retry ? 'retried' : 'processing', null, ['status' => 'processing', 'actor_id' => $actor->id]);
+                $this->audit->recordSnapshot($refund, $retry ? 'retried' : 'processing', null, ['status' => 'processing', 'actor_id' => $actor->id], $actor);
             }
 
             return $refund;
@@ -195,7 +195,7 @@ class TenantRefundService
             $refund->update(['status' => 'processed', 'manual_method' => $input['manual_method'], 'reference_number' => $input['reference_number'], 'processed_at' => $input['refund_date'], 'admin_note' => $input['admin_note']]);
             $this->setReturnStatus($return, 'refund_processing');
             $this->setReturnStatus($return, 'refunded');
-            $this->audit->recordSnapshot($refund, 'manual_processed', null, ['status' => 'processed', 'actor_id' => $actor->id, 'method' => $input['manual_method'], 'reference' => $input['reference_number']]);
+            $this->audit->recordSnapshot($refund, 'manual_processed', null, ['status' => 'processed', 'actor_id' => $actor->id, 'method' => $input['manual_method'], 'reference' => $input['reference_number']], $actor);
 
             return $refund;
         }, 3);

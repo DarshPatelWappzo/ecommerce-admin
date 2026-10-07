@@ -2,6 +2,8 @@
 
 namespace App\Repositories;
 
+use App\Models\Tenant\Category;
+use App\Services\TenantAuditLogService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Collection;
@@ -11,6 +13,8 @@ use stdClass;
 
 class TenantCategoryRepository
 {
+    public function __construct(private readonly TenantAuditLogService $audit) {}
+
     public function find(int $id): stdClass
     {
         $category = DB::connection('tenant')->table('categories')->whereNull('deleted_at')->find($id);
@@ -49,6 +53,19 @@ class TenantCategoryRepository
 
     /** @param array{name: string, parent_id?: int|string|null, status: bool|int|string} $data */
     public function save(array $data, ?int $id = null): int
+    {
+        return DB::connection('tenant')->transaction(function () use ($data, $id): int {
+            $before = $id === null ? null : Category::query()->lockForUpdate()->findOrFail($id)->only(['name', 'slug', 'parent_id', 'status']);
+            $savedId = $this->persist($data, $id);
+            $category = Category::findOrFail($savedId);
+            $this->audit->recordSnapshot($category, $id === null ? 'created' : 'updated', $before, $category->only(['name', 'slug', 'parent_id', 'status']));
+
+            return $savedId;
+        });
+    }
+
+    /** @param array{name: string, parent_id?: int|string|null, status: bool|int|string} $data */
+    private function persist(array $data, ?int $id = null): int
     {
         $base = substr(Str::slug($data['name']), 0, 240) ?: 'category';
         $slug = $base;

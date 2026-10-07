@@ -11,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 
 class TenantCustomerService
 {
-    public function __construct(private readonly TenantCustomerRepository $customers, private readonly TenantCustomerAddressService $addresses, private readonly AuditLogService $audit) {}
+    public function __construct(private readonly TenantCustomerRepository $customers, private readonly TenantCustomerAddressService $addresses, private readonly TenantAuditLogService $audit) {}
 
     public function save(array $data, ?int $id = null): Customer
     {
@@ -22,13 +22,14 @@ class TenantCustomerService
                 $address = $data['address'] ?? null;
                 unset($data['address']);
                 if (! $id) {
-                    $customer->customer_code = 'CUS-' . Str::ulid();
+                    $customer->customer_code = 'CUS-'.Str::ulid();
                 }
                 if (($data['customer_type'] ?? $customer->customer_type) === 'individual') {
                     $data['company_name'] = null;
                     $data['gstin'] = null;
                 }
                 $customer->fill($data);
+                $changedFields = array_keys($customer->getDirty());
                 if (! $customer->email && ! $customer->phone) {
                     throw ValidationException::withMessages(['email' => 'Provide an email address or mobile number.']);
                 }
@@ -50,7 +51,7 @@ class TenantCustomerService
                 }
                 $this->audit->recordSnapshot($customer, $id ? 'updated' : 'created', $before, [
                     ...$customer->only(['customer_code', 'customer_type', 'status']),
-                    'changed_fields' => array_keys($data),
+                    ...($changedFields !== [] ? ['changed_fields' => $changedFields] : []),
                 ]);
 
                 return $this->customers->details($customer->id);

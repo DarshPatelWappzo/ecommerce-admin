@@ -18,7 +18,7 @@ class TenantInvoiceService
         private readonly TenantOrderRepository $orders,
         private readonly TenantInvoiceSnapshotBuilder $snapshots,
         private readonly TenantInvoiceNumberService $numbers,
-        private readonly AuditLogService $audit,
+        private readonly TenantAuditLogService $audit,
     ) {}
 
     public function prepare(int $orderId): Invoice
@@ -45,6 +45,7 @@ class TenantInvoiceService
                 throw ValidationException::withMessages(['invoice' => 'Issued invoices cannot be edited.']);
             }
             $invoice ??= $this->newDraft($order, $actor, 'manual');
+            $before = $invoice->exists ? $invoice->only(['invoice_date', 'notes', 'terms', 'customer_name', 'billing']) : null;
             $snapshot = $this->snapshots->build($order);
             if ($invoice->order_fingerprint !== $snapshot['fingerprint']) {
                 throw ValidationException::withMessages(['order' => 'The order changed after this draft was prepared. Review and correct the order before invoicing.']);
@@ -57,7 +58,7 @@ class TenantInvoiceService
             if ($new) {
                 $this->saveItems($invoice, $snapshot);
             }
-            $this->audit->recordSnapshot($invoice, $new ? 'draft_created' : 'draft_updated', null, ['order_id' => $orderId, 'actor_id' => $actor->id]);
+            $this->audit->recordSnapshot($invoice, $new ? 'draft_created' : 'draft_updated', $before, $invoice->only(['invoice_date', 'notes', 'terms', 'customer_name', 'billing']), $actor);
 
             return $invoice->load('items');
         }, 3);
@@ -87,7 +88,7 @@ class TenantInvoiceService
             }
             $invoice->fill([...$this->numbers->next($invoice->invoice_date), 'status' => 'issued', 'issued_at' => now(), 'issued_by' => $actor->id, 'updated_by' => $actor->id])->save();
             $order->forceFill(['invoice_error' => null])->save();
-            $this->audit->recordSnapshot($invoice, 'issued', null, ['order_id' => $orderId, 'number' => $invoice->number, 'actor_id' => $actor->id]);
+            $this->audit->recordSnapshot($invoice, 'issued', null, ['order_id' => $orderId, 'number' => $invoice->number, 'mode' => $mode, 'status' => $invoice->status], $actor);
 
             return $invoice->load('items');
         }, 3);
@@ -101,9 +102,9 @@ class TenantInvoiceService
             $this->eligible($order, true, false);
             if (! $order->dispatch_approved_at) {
                 $order->forceFill(['dispatch_approved_at' => now(), 'dispatch_approved_by' => $actor->id, 'invoice_error' => 'Invoice processing pending. Retry dispatch approval if processing is interrupted.'])->save();
-                $this->audit->recordSnapshot($order, 'dispatch_approved', null, ['actor_id' => $actor->id]);
+                $this->audit->recordSnapshot($order, 'dispatch_approved', null, ['actor_id' => $actor->id], $actor);
             }
-            DB::connection('tenant')->afterCommit(fn() => $this->processAutomatic($orderId, $actor));
+            DB::connection('tenant')->afterCommit(fn () => $this->processAutomatic($orderId, $actor));
         }, 3);
 
         return $this->orders->details($orderId);
@@ -193,12 +194,12 @@ class TenantInvoiceService
     private function applyDetails(Invoice $invoice, array $input, Order $order): void
     {
         $date = $input['invoice_date'] ?? $invoice->invoice_date->toDateString();
-        Validator::make(['invoice_date' => $date], ['invoice_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:' . $order->order_date->toDateString(), 'before_or_equal:today']])->validate();
+        Validator::make(['invoice_date' => $date], ['invoice_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.$order->order_date->toDateString(), 'before_or_equal:today']])->validate();
         $invoice->invoice_date = $date;
         $billing = $input['billing'] ?? [];
         foreach (['country_code', 'state_code', 'city', 'postal_code'] as $field) {
             if (array_key_exists($field, $billing) && $billing[$field] !== $invoice->billing[$field]) {
-                throw ValidationException::withMessages(['billing.' . $field => 'A place-of-supply change requires correction of the order, not the invoice.']);
+                throw ValidationException::withMessages(['billing.'.$field => 'A place-of-supply change requires correction of the order, not the invoice.']);
             }
         }
         if (array_key_exists('gstin', $input) && $input['gstin'] !== ($invoice->customer['gstin'] ?? null)) {

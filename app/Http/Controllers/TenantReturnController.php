@@ -7,7 +7,7 @@ use App\Http\Requests\TenantReturnRequest;
 use App\Models\Tenant\ReturnReason;
 use App\Models\Tenant\ReturnRequest;
 use App\Repositories\TenantReturnRepository;
-use App\Services\AuditLogService;
+use App\Services\TenantAuditLogService;
 use App\Services\TenantOrderCalculationService;
 use App\Services\TenantRefundService;
 use App\Services\TenantReturnEligibilityService;
@@ -71,7 +71,7 @@ class TenantReturnController extends Controller
             }
         }
         foreach (['initiate', 'retry', 'reconcile', 'manual'] as $action) {
-            $data['permissions'][$action] = $request->allowed('refunds.' . $action);
+            $data['permissions'][$action] = $request->allowed('refunds.'.$action);
         }
         if ($request->is('api/*')) {
             $data = ['data' => $data];
@@ -169,10 +169,10 @@ class TenantReturnController extends Controller
 
     /** Save a reason without deleting historical references.
      * @param  TenantReturnActionRequest  $request  Validated reason fields.
-     * @param  AuditLogService  $audit  Existing tenant audit service.
+     * @param  TenantAuditLogService  $audit  Existing tenant audit service.
      * @return JsonResponse|RedirectResponse Saved reason.
      */
-    public function saveReason(TenantReturnActionRequest $request, AuditLogService $audit): JsonResponse|RedirectResponse
+    public function saveReason(TenantReturnActionRequest $request, TenantAuditLogService $audit): JsonResponse|RedirectResponse
     {
         $record = DB::connection('tenant')->transaction(function () use ($request, $audit): ReturnReason {
             $record = $request->filled('id') ? ReturnReason::lockForUpdate()->findOrFail($request->validated('id')) : new ReturnReason;
