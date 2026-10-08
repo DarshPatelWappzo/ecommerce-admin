@@ -6,15 +6,14 @@
     <div class="container-fluid">
         <div class="listing-page-header">
             <div>
-                <p class="text-primary fw-semibold mb-1">Tenant Administration</p>
                 <h1 class="page-title mb-0">Taxes</h1>
                 <p class="text-secondary mb-0">Manage percentage tax rates.</p>
             </div>
             <div class="d-flex flex-wrap align-items-center gap-2">
                 @if ($canCreate)
-                <a class="btn btn-primary" href="{{ route('tenant.taxes.create') }}">
-                    <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Add Tax
-                </a>
+                    <a class="btn btn-primary" href="{{ route('tenant.taxes.create') }}">
+                        <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Add Tax
+                    </a>
                 @endif
                 <x-filter-button :filters="['search', 'is_active']" />
             </div>
@@ -30,6 +29,7 @@
             @endif
         @endforeach
         <section class="dashboard-card listing-table-card" data-ajax-pagination-container>
+            <x-listing-search :action="route('tenant.taxes.index')" label="Search tax name or code..." :maxlength="100" :count="$taxes->total()" />
 
             <div class="table-responsive">
                 <table class="table listing-table align-middle mb-0">

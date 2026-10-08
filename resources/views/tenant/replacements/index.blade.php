@@ -3,7 +3,10 @@
 @section('content')
     <div class="container-fluid">
         <div class="listing-page-header">
-            <h1 class="page-title mb-0">Replacements</h1>
+            <div>
+                <h1 class="page-title mb-0">Replacements</h1>
+                <p class="text-secondary mb-0">Manage same-SKU replacements from request to completion.</p>
+            </div>
             <div class="d-flex flex-wrap align-items-center gap-2">
                 <x-filter-button :filters="['search', 'order_number', 'customer_id', 'status', 'from', 'to']" />
                 {{-- @if ($canCreate)
@@ -69,6 +72,7 @@
             </details>
         @endif
         <section class="dashboard-card listing-table-card" data-ajax-pagination-container>
+            <x-listing-search :action="route('tenant.replacements.index')" label="Search replacement number..." :maxlength="200" :count="$replacements->total()" />
 
             <div class="table-responsive">
                 <table class="table listing-table align-middle mb-0">
@@ -89,7 +93,9 @@
                                 <td>{{ $replacement->quantity }}</td>
                                 <td>{{ $replacement->reason->name }}</td>
                                 <td>{{ $replacement->requested_at->format('d M Y H:i') }}</td>
-                                <td>{{ ucwords(str_replace('_', ' ', $replacement->status)) }}</td>
+                                <td><x-status-badge
+                                        :status="$replacement->status">{{ ucwords(str_replace('_', ' ', $replacement->status)) }}</x-status-badge>
+                                </td>
                                 <td>{{ $replacement->item->sku }} / {{ $replacement->item->variant_name }}</td>
                                 <td><a class="btn btn-sm btn-light"
                                         href="{{ route('tenant.replacements.show', $replacement) }}">View</a></td>

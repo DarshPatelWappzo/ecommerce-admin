@@ -32,6 +32,7 @@
         @endif
 
         <div class="dashboard-card listing-table-card" data-ajax-pagination-container>
+            <x-listing-search :action="route('super-admin.admin.index')" label="Search users..." :count="$users->total()" />
 
             <div class="table-responsive">
                 <table class="table listing-table align-middle mb-0">

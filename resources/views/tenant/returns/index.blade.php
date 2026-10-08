@@ -3,7 +3,10 @@
 @section('content')
     <div class="container-fluid">
         <div class="listing-page-header">
-            <h1 class="page-title mb-0">Returns</h1>
+            <div>
+                <h1 class="page-title mb-0">Returns</h1>
+                <p class="text-secondary mb-0">Track return requests, inspections and refunds.</p>
+            </div>
             <div class="d-flex flex-wrap align-items-center gap-2">
                 @if ($canManageReasons)
                     <a class="btn btn-outline-primary" href="{{ route('tenant.returns.reasons') }}">Return reasons</a>
@@ -24,6 +27,7 @@
 
         @include('tenant.customers._notifications')
         <section class="dashboard-card listing-table-card" data-ajax-pagination-container>
+            <x-listing-search :action="route('tenant.returns.index')" label="Search return number..." :maxlength="200" :count="$returns->total()" />
 
             <div class="table-responsive">
                 <table class="table listing-table align-middle mb-0">
@@ -44,7 +48,9 @@
                                 <td>{{ $return->quantity }}</td>
                                 <td>{{ $return->reason->name }}</td>
                                 <td>{{ $return->requested_at->format('d M Y H:i') }}</td>
-                                <td>{{ ucwords(str_replace('_', ' ', $return->status)) }}</td>
+                                <td><x-status-badge
+                                        :status="$return->status">{{ ucwords(str_replace('_', ' ', $return->status)) }}</x-status-badge>
+                                </td>
                                 <td>{{ $return->order->currency }} {{ $return->refund_amount }}</td>
                                 <td><a class="btn btn-sm btn-light"
                                         href="{{ route('tenant.returns.show', $return) }}">View</a></td>

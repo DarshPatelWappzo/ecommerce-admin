@@ -9,7 +9,6 @@
     <div class="container-fluid">
         <div class="listing-page-header">
             <div>
-                <p class="text-primary fw-semibold mb-1">Tenant Administration</p>
                 <h1 class="page-title mb-0">Categories</h1>
                 <p class="text-secondary mb-0">Browse your product categories.</p>
             </div>
@@ -35,6 +34,7 @@
         @endif
 
         <section class="dashboard-card listing-table-card">
+            <x-listing-search :action="route('tenant.categories.index')" label="Search categories..." :maxlength="200" :count="$categories->total()" />
             <div class="table-responsive">
                 <table class="table listing-table align-middle mb-0">
                     <thead>

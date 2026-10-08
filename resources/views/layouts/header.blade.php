@@ -12,6 +12,7 @@
                     <button class="user-menu-button" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <span class="user-avatar"
                             aria-hidden="true">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
+                        <span class="user-menu-name d-none d-sm-inline">{{ auth()->user()->name }}</span>
                         <i class="fa-solid fa-chevron-down user-menu-chevron" aria-hidden="true"></i>
                         <span class="visually-hidden">Open account menu</span>
                     </button>

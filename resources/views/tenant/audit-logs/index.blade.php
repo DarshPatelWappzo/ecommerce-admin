@@ -27,6 +27,7 @@
         @include('tenant.partials.validation-errors')
 
         <section class="dashboard-card listing-table-card">
+            <x-listing-search :action="route('tenant.audit-logs.index')" label="Search audit logs..." :maxlength="200" :count="$auditLogs->total()" />
             <div class="table-responsive">
                 <table class="table listing-table align-middle mb-0">
                     <thead>

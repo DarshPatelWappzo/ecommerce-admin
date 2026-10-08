@@ -16,19 +16,31 @@
             </button>
         </div>
         <nav class="sidebar-nav" aria-label="Main navigation">
-            <span class="sidebar-label">Menu</span>
-            <a class="sidebar-link {{ request()->routeIs('super-admin.dashboard') ? 'active' : '' }}"
-                href="{{ request()->is('super-admin/*') ? route('super-admin.dashboard') : url('/') }}"
-                data-tooltip="Dashboard"><i class="fa-solid fa-house" aria-hidden="true"></i><span>Dashboard</span></a>
-            <a class="sidebar-link {{ request()->routeIs('super-admin.admin.*') ? 'active' : '' }}"
-                href="{{ route('super-admin.admin.index') }}" data-tooltip="Users"><i class="fa-solid fa-users"
-                    aria-hidden="true"></i><span>Users</span></a>
-            <a class="sidebar-link {{ request()->routeIs('super-admin.package.*') ? 'active' : '' }}"
-                href="{{ route('super-admin.package.index') }}" data-tooltip="Packages"><i class="fa-solid fa-box-open"
-                    aria-hidden="true"></i><span>Packages</span></a>
-            <a class="sidebar-link {{ request()->routeIs('super-admin.audit-logs.*') ? 'active' : '' }}"
-                href="{{ route('super-admin.audit-logs.index') }}" data-tooltip="Audit logs"><i
-                    class="fa-solid fa-clipboard-list" aria-hidden="true"></i><span>Audit logs</span></a>
+            <div class="sidebar-group">
+                <span class="sidebar-label">Overview</span>
+                <a class="sidebar-link {{ request()->routeIs('super-admin.dashboard') ? 'active' : '' }}"
+                    href="{{ request()->is('super-admin/*') ? route('super-admin.dashboard') : url('/') }}"
+                    data-tooltip="Dashboard"><i class="fa-solid fa-house"
+                        aria-hidden="true"></i><span>Dashboard</span></a>
+            </div>
+            <div class="sidebar-group">
+                <span class="sidebar-label">Access</span>
+                <a class="sidebar-link {{ request()->routeIs('super-admin.admin.*') ? 'active' : '' }}"
+                    href="{{ route('super-admin.admin.index') }}" data-tooltip="Users"><i class="fa-solid fa-users"
+                        aria-hidden="true"></i><span>Users</span></a>
+            </div>
+            <div class="sidebar-group">
+                <span class="sidebar-label">Catalog</span>
+                <a class="sidebar-link {{ request()->routeIs('super-admin.package.*') ? 'active' : '' }}"
+                    href="{{ route('super-admin.package.index') }}" data-tooltip="Packages"><i
+                        class="fa-solid fa-box-open" aria-hidden="true"></i><span>Packages</span></a>
+            </div>
+            <div class="sidebar-group">
+                <span class="sidebar-label">System</span>
+                <a class="sidebar-link {{ request()->routeIs('super-admin.audit-logs.*') ? 'active' : '' }}"
+                    href="{{ route('super-admin.audit-logs.index') }}" data-tooltip="Audit logs"><i
+                        class="fa-solid fa-clipboard-list" aria-hidden="true"></i><span>Audit logs</span></a>
+            </div>
         </nav>
     </div>
 </aside>

@@ -3,7 +3,10 @@
 @section('content')
     <div class="container-fluid">
         <div class="listing-page-header">
-            <h1 class="page-title mb-0">Invoices</h1>
+            <div>
+                <h1 class="page-title mb-0">Invoices</h1>
+                <p class="text-secondary mb-0">Manage invoices and their linked orders.</p>
+            </div>
             <div class="d-flex flex-wrap align-items-center gap-2">
                 @if ($permissions['create'])
                     <a class="btn btn-primary" href="{{ route('tenant.invoices.create') }}">Prepare invoice</a>
@@ -25,6 +28,7 @@
         @include('tenant.customers._notifications')
 
         <div class="dashboard-card listing-table-card">
+            <x-listing-search :action="route('tenant.invoices.index')" label="Search invoices..." :maxlength="200" :count="$invoices->total()" />
             <div class="table-responsive">
                 <table class="table listing-table align-middle mb-0">
                     <thead>
@@ -47,9 +51,12 @@
                                 <td>{{ $invoice->order->order_number }}</td>
                                 <td>{{ $invoice->customer_name }}</td>
                                 <td>{{ $invoice->invoice_date->format('d M Y') }}</td>
-                                <td>{{ ucfirst($invoice->status) }} / {{ $invoice->mode }}</td>
+                                <td><x-status-badge :status="$invoice->status">{{ ucfirst($invoice->status) }}</x-status-badge>
+                                    <div class="small text-secondary mt-1">{{ $invoice->mode }}</div>
+                                </td>
                                 <td>{{ $invoice->currency }} {{ $invoice->grand_total }}</td>
-                                <td>{{ $invoice->order->payment_status }}</td>
+                                <td><x-status-badge
+                                        :status="$invoice->order->payment_status">{{ $invoice->order->payment_status }}</x-status-badge></td>
                             </tr>
                         @empty<tr>
                                 <td colspan="7" class="listing-empty">No invoices found.</td>

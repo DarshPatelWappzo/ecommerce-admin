@@ -3,11 +3,15 @@
 @section('content')
     <div class="container-fluid">
         <div class="listing-page-header">
-            <h1 class="page-title mb-0">Products</h1>
+            <div>
+                <h1 class="page-title mb-0">Products</h1>
+                <p class="text-secondary mb-0">Manage products, pricing, inventory and availability.</p>
+            </div>
             <div class="d-flex flex-wrap align-items-center gap-2">
                 @if ($canCreate)
                     <a class="btn btn-outline-secondary" href="{{ route('tenant.catalog.index') }}">Tags &amp; attributes</a>
-                    <a class="btn btn-primary" href="{{ route('tenant.products.create') }}">Add product</a>
+                    <a class="btn btn-primary" href="{{ route('tenant.products.create') }}"><i class="fa-solid fa-plus me-1"
+                            aria-hidden="true"></i>Add product</a>
                 @endif
                 <x-filter-button :filters="['search', 'category', 'tag', 'status', 'product_type', 'stock', 'min_price', 'max_price']" />
             </div>
@@ -36,6 +40,7 @@
         <div class="alert alert-danger d-none" data-list-error role="alert"></div>
 
         <section class="dashboard-card listing-table-card">
+            <x-listing-search :action="route('tenant.products.index')" label="Search products or SKU..." :maxlength="191" :count="$products->total()" />
             <div class="table-responsive">
                 <table class="table listing-table align-middle mb-0">
                     <thead>
@@ -58,12 +63,13 @@
                                 <td>
                                     @if ($image = $product->images->firstWhere('is_primary', true))
                                         <img src="{{ $image->url }}" alt="{{ $image->alt_text ?: $product->name }}"
-                                            width="56" height="56" class="rounded object-fit-cover">
+                                            width="48" height="48" class="product-thumbnail">
                                     @else
-                                        <span class="text-secondary small">No image</span>
+                                        <span class="product-thumbnail" role="img" aria-label="No image"><i
+                                                class="fa-regular fa-image" aria-hidden="true"></i></span>
                                     @endif
                                 </td>
-                                <td><strong>{{ $product->name }}</strong>
+                                <td class="product-name"><strong>{{ $product->name }}</strong>
                                     <div class="text-secondary small">{{ $product->variants->pluck('sku')->join(', ') }}
                                     </div>
                                 </td>
@@ -84,15 +90,29 @@
                                 </td>
                                 <td>{{ $product->created_at->format('d M Y') }}</td>
                                 <td>
-                                    @if ($canUpdate)
-                                        <a class="btn btn-sm btn-outline-primary"
-                                            href="{{ route('tenant.products.edit', $product) }}">Edit</a>
-                                    @endif
-                                    @if ($canDelete)
-                                        <form class="d-inline" method="POST"
-                                            action="{{ route('tenant.products.destroy', $product) }}" data-product-delete>
-                                            @csrf @method('DELETE')<button
-                                                class="btn btn-sm btn-outline-danger">Delete</button></form>
+                                    @if ($canUpdate || $canDelete)
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown"
+                                                data-bs-config='{"popperConfig":{"strategy":"fixed"}}' aria-expanded="false"
+                                                aria-label="Actions for {{ $product->name }}">
+                                                <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
+                                            </button>
+                                            <div class="dropdown-menu dropdown-menu-end">
+                                                @if ($canUpdate)
+                                                    <a class="dropdown-item"
+                                                        href="{{ route('tenant.products.edit', $product) }}">Edit</a>
+                                                @endif
+                                                @if ($canDelete)
+                                                    <form class="d-inline" method="POST"
+                                                        action="{{ route('tenant.products.destroy', $product) }}"
+                                                        data-product-delete>
+                                                        @csrf @method('DELETE')
+                                                        <button class="dropdown-item text-danger"
+                                                            type="submit">Delete</button>
+                                                    </form>
+                                                @endif
+                                            </div>
+                                        </div>
                                     @endif
                                 </td>
                             </tr>

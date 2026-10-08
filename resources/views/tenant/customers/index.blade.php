@@ -3,7 +3,10 @@
 @section('content')
     <div class="container-fluid">
         <div class="listing-page-header">
-            <h1 class="page-title mb-0">Customers</h1>
+            <div>
+                <h1 class="page-title mb-0">Customers</h1>
+                <p class="text-secondary mb-0">Manage customer profiles, contact details and addresses.</p>
+            </div>
             <div class="d-flex flex-wrap align-items-center gap-2">
                 @if ($canCreate)
                     <a class="btn btn-primary" href="{{ route('tenant.customers.create') }}">Add customer</a>
@@ -27,6 +30,7 @@
 
         @include('tenant.customers._notifications')
         <section class="dashboard-card listing-table-card" data-ajax-pagination-container>
+            <x-listing-search :action="route('tenant.customers.index')" label="Search customers..." :maxlength="200" :count="$customers->total()" />
 
             <div class="table-responsive">
                 <table class="table listing-table align-middle mb-0">

@@ -9,7 +9,6 @@
     <div class="container-fluid">
         <div class="listing-page-header">
             <div>
-                <p class="text-primary fw-semibold mb-1">Tenant Administration</p>
                 <h1 class="page-title mb-0">Roles</h1>
                 <p class="text-secondary mb-0">Manage roles and their permissions.</p>
             </div>
@@ -33,6 +32,7 @@
         @endif
 
         <section class="dashboard-card listing-table-card">
+            <x-listing-search :action="route('tenant.roles.index')" label="Search roles..." :maxlength="200" />
             <div class="table-responsive">
                 <table class="table listing-table align-middle mb-0">
                     <thead>

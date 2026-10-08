@@ -3,7 +3,10 @@
 @section('content')
     <div class="container-fluid">
         <div class="listing-page-header">
-            <h1 class="page-title mb-0">Coupons</h1>
+            <div>
+                <h1 class="page-title mb-0">Coupons</h1>
+                <p class="text-secondary mb-0">Manage discounts, availability and coupon usage.</p>
+            </div>
             <div class="d-flex flex-wrap align-items-center gap-2">
                 @if ($canCreate)
                     <a class="btn btn-primary" href="{{ route('tenant.coupons.create') }}">Add coupon</a>
@@ -26,6 +29,7 @@
 
         @include('tenant.customers._notifications')
         <section class="dashboard-card listing-table-card" data-ajax-pagination-container>
+            <x-listing-search :action="route('tenant.coupons.index')" label="Search code or description..." :maxlength="200" :count="$coupons->total()" />
 
             <div class="table-responsive">
                 <table class="table listing-table align-middle mb-0">
@@ -45,8 +49,7 @@
                                 <td><a href="{{ route('tenant.coupons.show', $coupon) }}">{{ $coupon->code }}</a></td>
                                 <td>{{ $coupon->discount_value }}
                                     {{ $coupon->discount_type === 'percentage' ? '%' : 'INR' }}</td>
-                                <td><span
-                                        class="badge text-bg-{{ $coupon->status === 'active' ? 'success' : 'secondary' }}">{{ ucfirst($coupon->status) }}</span>
+                                <td><x-status-badge :status="$coupon->status">{{ ucfirst($coupon->status) }}</x-status-badge>
                                 </td>
                                 <td>{{ $coupon->starts_at?->format('d M Y H:i') ?? 'Any time' }} —
                                     {{ $coupon->ends_at?->format('d M Y H:i') ?? 'No expiry' }}</td>

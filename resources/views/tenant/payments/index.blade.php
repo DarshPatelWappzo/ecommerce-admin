@@ -5,6 +5,7 @@
         <div class="listing-page-header">
             <div>
                 <h1 class="page-title mb-0">Payments</h1>
+                <p class="text-secondary mb-0">Review payment activity, amounts and transaction details.</p>
             </div>
             <x-filter-button :filters="['search', 'method', 'status', 'from', 'to']" />
         </div>
@@ -28,6 +29,7 @@
         @include('tenant.partials.validation-errors')
 
         <section class="dashboard-card listing-table-card">
+            <x-listing-search :action="route('tenant.payments.index')" label="Search order or customer..." :maxlength="200" :count="$payments->total()" />
 
             <div class="table-responsive">
                 <table class="table listing-table align-middle mb-0">
@@ -50,8 +52,7 @@
                                 <td>{{ $payment->order->order_number }}</td>
                                 <td>{{ $payment->order->customer_name }}</td>
                                 <td>{{ ucwords(str_replace('_', ' ', $payment->method)) }}</td>
-                                <td><span
-                                        class="badge text-bg-{{ $payment->status === 'captured' ? 'success' : ($payment->status === 'failed' ? 'danger' : 'secondary') }}">{{ ucfirst($payment->status) }}</span>
+                                <td><x-status-badge :status="$payment->status">{{ ucfirst($payment->status) }}</x-status-badge>
                                 </td>
                                 <td>{{ $payment->currency }} {{ $payment->amount }}</td>
                                 <td>{{ $payment->gateway_payment_id ?: $payment->reference_number ?: '—' }}</td>

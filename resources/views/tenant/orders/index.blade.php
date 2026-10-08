@@ -3,7 +3,10 @@
 @section('content')
     <div class="container-fluid">
         <div class="listing-page-header">
-            <h1 class="page-title mb-0">Orders</h1>
+            <div>
+                <h1 class="page-title mb-0">Orders</h1>
+                <p class="text-secondary mb-0">Track orders, payments and fulfillment.</p>
+            </div>
             <div class="d-flex flex-wrap align-items-center gap-2">
                 @if ($permissions['create'])
                     <a class="btn btn-primary" href="{{ route('tenant.orders.create') }}">Add order</a>
@@ -36,6 +39,7 @@
 
         @include('tenant.customers._notifications')
         <section class="dashboard-card listing-table-card" data-ajax-pagination-container>
+            <x-listing-search :action="route('tenant.orders.index')" label="Search order or customer..." :maxlength="200" :count="$orders->total()" />
 
             <div class="table-responsive">
                 <table class="table listing-table align-middle mb-0">
@@ -53,8 +57,10 @@
                                 <td>{{ $order->customer_name }}</td>
                                 <td>{{ $order->order_date->format('d M Y H:i') }}</td>
                                 <td>INR {{ $order->grand_total }}</td>
-                                <td>{{ ucwords(str_replace('_', ' ', $order->payment_status)) }}</td>
-                                <td>{{ ucfirst($order->status) }}</td>
+                                <td><x-status-badge
+                                        :status="$order->payment_status">{{ ucwords(str_replace('_', ' ', $order->payment_status)) }}</x-status-badge>
+                                </td>
+                                <td><x-status-badge :status="$order->status">{{ ucfirst($order->status) }}</x-status-badge></td>
                                 <td class="text-nowrap"><a class="btn btn-sm btn-light"
                                         href="{{ route('tenant.orders.show', $order) }}">View</a>
                                     @if ($order->status === 'draft' && $permissions['update'])
