@@ -88,4 +88,34 @@
 @push('scripts')
     <script src="{{ asset('vendor/jsvalidation/js/jsvalidation.js') }}"></script>
     {!! JsValidator::formRequest(\App\Http\Requests\TenantCouponSaveRequest::class, '#tenant-coupon-form') !!}
+    <script>
+        const clearCouponDiscountValue = function () {
+            document.querySelector('#tenant-coupon-form #discount_value').value = '';
+        };
+        const couponDiscountType = document.querySelector('#tenant-coupon-form #discount_type');
+        couponDiscountType.addEventListener('change', clearCouponDiscountValue);
+        couponDiscountType.addEventListener('input', clearCouponDiscountValue);
+        jQuery(function ($) {
+            $('#tenant-coupon-form #discount_value').rules('add', {
+                min: function () {
+                    return couponDiscountType.value === 'percentage' ? 1 : 0;
+                },
+                max: function () {
+                    return couponDiscountType.value === 'percentage' ? 100 : 9999999999999.99;
+                },
+                messages: {
+                    min: function () {
+                        return couponDiscountType.value === 'percentage'
+                            ? 'Percentage discount must be between 1 and 100.'
+                            : 'Discount value must be at least 0.';
+                    },
+                    max: function () {
+                        return couponDiscountType.value === 'percentage'
+                            ? 'Percentage discount must be between 1 and 100.'
+                            : 'Discount value must not exceed 9999999999999.99.';
+                    }
+                }
+            });
+        });
+    </script>
 @endpush

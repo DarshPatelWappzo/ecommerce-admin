@@ -34,7 +34,7 @@ class TenantCouponSaveRequest extends TenantCouponRequest
             'description' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['required', 'boolean'],
             'discount_type' => ['required', Rule::in(['fixed', 'percentage'])],
-            'discount_value' => ['required', ...$money, ...($this->input('discount_type') === 'percentage' ? ['max:100'] : [])],
+            'discount_value' => ['required', ...$money, ...($this->input('discount_type') === 'percentage' ? ['min:1', 'max:100'] : [])],
             'maximum_discount' => ['nullable', ...$money],
             'minimum_subtotal' => ['required', ...$money],
             'starts_at' => ['nullable', 'date'],
