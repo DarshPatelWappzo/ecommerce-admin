@@ -16,7 +16,9 @@ class TenantReturnEligibilityService
         $days = $item->is_returnable !== null ? $item->return_days : $item->product?->return_days;
         $delivery = $item->order->shipment?->delivered_at;
         $reserved = $item->returns->filter(fn(ReturnRequest $return): bool => $this->consumesQuantity($return));
-        $replacementQuantity = $item->replacements()->whereNotIn('status', ReplacementRequest::RELEASED)->sum('quantity');
+        $replacementQuantity = $item->relationLoaded('replacements')
+            ? $item->replacements->whereNotIn('status', ReplacementRequest::RELEASED)->sum('quantity')
+            : $item->replacements()->whereNotIn('status', ReplacementRequest::RELEASED)->sum('quantity');
         $remaining = max(0, $item->quantity - $reserved->sum('quantity') - $replacementQuantity);
         $deadline = $delivery && $days !== null ? $delivery->copy()->addDays($days)->endOfDay() : null;
         $reason = match (true) {

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Tenant\Customer;
 use App\Models\Tenant\Order;
 use App\Models\Tenant\OrderPayment;
 use App\Models\Tenant\OrderPaymentCheckout;
@@ -19,6 +20,7 @@ class TenantPaymentService
         private readonly TenantOrderRepository $orders,
         private readonly TenantOrderService $orderService,
         private readonly TenantAuditLogService $audit,
+        private readonly CustomerCartService $customerCarts,
     ) {}
 
     /** @return array<string, string> Enabled method labels, never credentials. */
@@ -50,7 +52,7 @@ class TenantPaymentService
     }
 
     /** Reserve one durable provider checkout per immutable submitted order. */
-    public function initiate(int $id, User $actor, int $tenantDatabaseId): array
+    public function initiate(int $id, User|Customer $actor, int $tenantDatabaseId): array
     {
         self::requireEnabled($this->gateway->name());
         $this->gateway->ensureConfigured();
@@ -66,7 +68,7 @@ class TenantPaymentService
                 'gateway_account' => $this->gateway->publicKey(),
                 'amount' => $order->grand_total,
                 'currency' => $order->currency,
-                'initiated_by' => $actor->id,
+                'initiated_by' => ($actor instanceof User ? $actor->id : null),
             ]);
             $this->matchingAccount($checkout);
             $create = $checkout->requested_at === null;
@@ -281,6 +283,7 @@ class TenantPaymentService
             if ($event) {
                 $checkout->events()->create([...$event, 'gateway_payment_id' => $entity['id'], 'processed_at' => now()]);
             }
+            DB::connection('tenant')->afterCommit(fn() => $this->customerCarts->completeOrder($order->id));
         }, 3);
     }
 

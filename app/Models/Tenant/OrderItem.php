@@ -33,4 +33,9 @@ class OrderItem extends TenantModel
     {
         return $this->belongsTo(Product::class)->withTrashed();
     }
+
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class, 'product_variant_id');
+    }
 }

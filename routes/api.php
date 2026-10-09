@@ -9,8 +9,13 @@ use App\Http\Controllers\Api\Tenant\TenantProductController;
 use App\Http\Controllers\Api\Tenant\TenantUserController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\CustomerAuthController;
+use App\Http\Controllers\CustomerCartController;
+use App\Http\Controllers\CustomerCatalogController;
+use App\Http\Controllers\CustomerCheckoutController;
+use App\Http\Controllers\CustomerOrderController;
 use App\Http\Controllers\CustomerReplacementController;
 use App\Http\Controllers\CustomerReturnController;
+use App\Http\Controllers\CustomerWishlistController;
 use App\Http\Controllers\OrderPaymentWebhookController;
 use App\Http\Controllers\TenantAuditLogController;
 use App\Http\Controllers\TenantCatalogController;
@@ -157,6 +162,39 @@ Route::prefix('customer')->name('api.customer.')->group(function (): void {
         Route::post('auth/verify-code', 'verify')->name('auth.verify-code');
     });
     Route::middleware([AuthenticateCustomerToken::class, 'throttle:60,1'])->group(function (): void {
+        Route::controller(CustomerCartController::class)->group(function (): void {
+            Route::get('cart', 'show')->name('cart.show');
+            Route::post('cart/items', 'store')->name('cart.items.store');
+            Route::patch('cart/items/{item}', 'update')->whereNumber('item')->name('cart.items.update');
+            Route::delete('cart/items/{item}', 'destroy')->whereNumber('item')->name('cart.items.destroy');
+            Route::delete('cart', 'clear')->name('cart.clear');
+        });
+        Route::controller(CustomerWishlistController::class)->group(function (): void {
+            Route::get('wishlist', 'index')->name('wishlist.index');
+            Route::post('wishlist', 'store')->name('wishlist.store');
+            Route::delete('wishlist/{product}', 'destroy')->whereNumber('product')->name('wishlist.destroy');
+            Route::post('wishlist/{product}/move-to-cart', 'move')->whereNumber('product')->name('wishlist.move');
+        });
+        Route::controller(CustomerCheckoutController::class)->group(function (): void {
+            Route::get('addresses', 'addresses')->name('addresses.index');
+            Route::get('checkout/summary', 'summary')->name('checkout.summary');
+            Route::post('checkout/coupon', 'applyCoupon')->name('checkout.coupon.apply');
+            Route::delete('checkout/coupon', 'removeCoupon')->name('checkout.coupon.remove');
+            Route::post('checkout/place-order', 'place')->middleware('throttle:10,1,customer-purchase')->name('checkout.place');
+        });
+        Route::controller(CustomerOrderController::class)->group(function (): void {
+            Route::get('orders', 'index')->name('orders.index');
+            Route::get('orders/{order}', 'show')->whereNumber('order')->name('orders.show');
+            Route::get('orders/{order}/tracking', 'tracking')->whereNumber('order')->name('orders.tracking');
+            Route::get('orders/{order}/invoice', 'invoice')->whereNumber('order')->name('orders.invoice');
+            Route::post('orders/{order}/reorder', 'reorder')->whereNumber('order')->name('orders.reorder');
+            Route::post('orders/{order}/payment', 'payment')->whereNumber('order')->middleware('throttle:10,1,customer-purchase')->name('orders.payment');
+        });
+        Route::controller(CustomerCatalogController::class)->group(function (): void {
+            Route::get('products', 'index')->name('products.index');
+            Route::get('products/{product}', 'show')->name('products.show');
+            Route::get('categories', 'categories')->name('categories.index');
+        });
         Route::post('auth/logout', [CustomerAuthController::class, 'logout'])->name('auth.logout');
         Route::controller(CustomerReplacementController::class)->group(function (): void {
             Route::get('replacement-reasons', 'reasons')->name('replacements.reasons');

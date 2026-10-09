@@ -17,6 +17,7 @@ class CustomerAuthController extends Controller
     public function requestCode(CustomerOtpRequest $request, CustomerOtpService $otp): JsonResponse
     {
         $otp->request($request->validated('email'), $request->attributes->get('tenant_database')->id);
+
         $data = ['message' => 'If an active customer account exists, a sign-in code has been sent.'];
 
         return response()->json($data);

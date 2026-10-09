@@ -5,6 +5,7 @@ paths:
   - app/Services/TenantPaymentService.php
   - app/Services/TenantOrderService.php
   - 'app/Services/TenantInvoice*.php'
+  - 'app/Services/Customer*.php'
 ---
 
 # Services
@@ -38,3 +39,9 @@ Invoice discount_amount already includes coupon_discount; never subtract or disp
 
 ## Seller details are optional for invoice issuance
 The user confirmed that missing seller configuration must not block invoice issuance. Snapshot whichever tenant seller details are available, preserve empty values without inventing an identity, and enforce order/payment/dispatch eligibility and financial consistency independently.
+
+## Customer checkout recovery and cart conversion
+Customer shopping runs on the bearer-token-selected tenant database and serializes mutations on the customer row. Reuse TenantOrderService, TenantOrderCalculationService and customer.checkout idempotency; commit the confirmed order and cart_orders snapshot before any gateway request. COD converts at acceptance; other methods convert after trusted full payment. Preserve later cart edits by revision and block a second order for an unresolved cart.
+
+## Customer actors are not tenant staff IDs
+Shared order save/transition and gateway initiation accept User or Customer. Customer actors leave staff foreign keys null and use customer identity in audit metadata. Trusted payment writes schedule cart conversion after the tenant transaction commits, avoiding customer/order lock inversion; keep lazy cart synchronization as crash recovery.

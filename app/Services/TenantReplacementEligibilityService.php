@@ -23,7 +23,9 @@ class TenantReplacementEligibilityService
         $claimed = $item->replacements->whereNotIn('status', ReplacementRequest::RELEASED)->sum('quantity');
         $remaining = max(0, $item->quantity - $returned - $claimed);
         $active = $item->replacements->whereNotIn('status', ReplacementRequest::TERMINAL)->isNotEmpty();
-        $variantExists = ProductVariant::where('product_id', $item->product_id)->where('sku', $item->sku)->whereKey($item->product_variant_id)->exists();
+        $variantExists = $item->relationLoaded('variant')
+            ? $item->variant !== null && $item->variant->product_id === $item->product_id && $item->variant->sku === $item->sku
+            : ProductVariant::where('product_id', $item->product_id)->where('sku', $item->sku)->whereKey($item->product_variant_id)->exists();
         $reason = match (true) {
             ! $replaceable || $days === null => 'PRODUCT_NOT_REPLACEABLE',
             $item->order->status !== 'delivered' || ! $delivery || $delivery->isFuture() => 'ORDER_NOT_DELIVERED',

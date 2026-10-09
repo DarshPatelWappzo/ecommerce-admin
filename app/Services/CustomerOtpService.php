@@ -27,7 +27,18 @@ class CustomerOtpService
         $code = (string) random_int(100000, 999999);
         DB::connection('tenant')->transaction(function () use ($customer, $code): void {
             Customer::lockForUpdate()->findOrFail($customer->id);
-            DB::connection('tenant')->table('customer_login_codes')->updateOrInsert(['customer_id' => $customer->id], ['code_hash' => Hash::make($code), 'attempts' => 0, 'expires_at' => now()->addMinutes(10), 'created_at' => now(), 'updated_at' => now()]);
+            DB::connection('tenant')
+                ->table('customer_login_codes')
+                ->updateOrInsert(
+                    ['customer_id' => $customer->id],
+                    [
+                        'code_hash' => Hash::make($code),
+                        'attempts' => 0,
+                        'expires_at' => now()->addMinutes(10),
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]
+                );
         }, 3);
         Mail::to($email)->send(new CustomerLoginCode($code));
     }
