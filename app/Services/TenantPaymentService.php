@@ -21,6 +21,7 @@ class TenantPaymentService
         private readonly TenantOrderService $orderService,
         private readonly TenantAuditLogService $audit,
         private readonly CustomerCartService $customerCarts,
+        private readonly TenantOrderEmailService $emails,
     ) {}
 
     /** @return array<string, string> Enabled method labels, never credentials. */
@@ -268,7 +269,11 @@ class TenantPaymentService
                 $status = $received->isGreaterThanOrEqualTo($order->grand_total) ? 'paid'
                     : ($received->isGreaterThan(0) ? 'partially_paid'
                         : ($order->payments()->whereNotNull('gateway_payment_id')->whereIn('status', ['created', 'authorized'])->exists() ? 'pending' : 'failed'));
+                $wasPaid = $order->payment_status === 'paid';
                 $order->update(['payment_status' => $status]);
+                if ($status === 'paid' && ! $wasPaid && $checkout->status === 'paid') {
+                    $this->emails->send($order, 'Payment Received', 'Full payment for your order has been received.', ['Amount' => $order->currency . ' ' . $order->grand_total]);
+                }
                 if ($previousStatus !== $payment->status) {
                     $this->audit->recordSnapshot($payment, TenantAuditAction::GATEWAY_PAYMENT_RECONCILED, ['attempt_status' => $previousStatus], [
                         'order_id' => $order->id,

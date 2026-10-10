@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
 
 class TenantReturnService
 {
-    public function __construct(private readonly TenantReturnEligibilityService $eligibility, private readonly TenantRefundCalculationService $calculator, private readonly TenantAuditLogService $audit) {}
+    public function __construct(private readonly TenantReturnEligibilityService $eligibility, private readonly TenantRefundCalculationService $calculator, private readonly TenantAuditLogService $audit, private readonly TenantOrderEmailService $emails) {}
 
     /** @param array<string, mixed> $input Validated customer request; prices and statuses are never accepted. */
     public function create(int $orderId, int $itemId, Customer $customer, array $input): ReturnRequest
@@ -36,7 +36,7 @@ class TenantReturnService
                 $item->update(['is_returnable' => $item->product?->is_returnable ?? false, 'return_days' => $item->product?->return_days, 'is_replaceable' => $item->product?->is_replaceable ?? false, 'replacement_days' => $item->product?->replacement_days]);
             }
             $return = ReturnRequest::create([
-                'return_number' => 'RET-'.now()->format('Ym').'-'.Str::ulid(),
+                'return_number' => 'RET-' . now()->format('Ym') . '-' . Str::ulid(),
                 'order_id' => $order->id,
                 'order_item_id' => $item->id,
                 'customer_id' => $customer->id,
@@ -66,7 +66,7 @@ class TenantReturnService
                 throw ValidationException::withMessages(['status' => 'Complete the refund before closing this return.']);
             }
             if (! in_array($target, ReturnRequest::TRANSITIONS[$from] ?? [], true) || in_array($target, ['refund_processing', 'refunded', 'refund_failed'], true)) {
-                throw ValidationException::withMessages(['status' => 'This return cannot move from '.$from.' to '.$target.'.']);
+                throw ValidationException::withMessages(['status' => 'This return cannot move from ' . $from . ' to ' . $target . '.']);
             }
             if (in_array($target, ['rejected', 'inspection_failed'], true) && empty($input['rejection_reason'])) {
                 throw ValidationException::withMessages(['rejection_reason' => 'A rejection or failed inspection requires a reason.']);
@@ -87,8 +87,8 @@ class TenantReturnService
                 default => null
             };
             if ($action) {
-                $fields[$action.'_at'] = now();
-                $fields[$action.'_by'] = $actor->id;
+                $fields[$action . '_at'] = now();
+                $fields[$action . '_by'] = $actor->id;
             }
             if ($target === 'inspection_failed') {
                 $fields['inventory_disposition'] = 'inspection_failed';
@@ -108,6 +108,14 @@ class TenantReturnService
             }
             $return->update($fields);
             $this->audit->recordSnapshot($return, $target, ['status' => $from], [...$fields, 'actor_id' => $actor->id], $actor);
+
+            if (in_array($target, ['approved', 'rejected'], true)) {
+                $details = ['Return request' => $return->return_number];
+                if ($target === 'rejected') {
+                    $details['Reason'] = $return->rejection_reason;
+                }
+                $this->emails->send($return->order, 'Return Request ' . ucfirst($target), 'Your return request has been ' . $target . '.', $details);
+            }
 
             return $return;
         }, 3);

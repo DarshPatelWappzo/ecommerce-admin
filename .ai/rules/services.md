@@ -6,6 +6,7 @@ paths:
   - app/Services/TenantOrderService.php
   - 'app/Services/TenantInvoice*.php'
   - 'app/Services/Customer*.php'
+  - 'app/Services/Tenant*.php'
 ---
 
 # Services
@@ -45,3 +46,6 @@ Customer shopping runs on the bearer-token-selected tenant database and serializ
 
 ## Customer actors are not tenant staff IDs
 Shared order save/transition and gateway initiation accept User or Customer. Customer actors leave staff foreign keys null and use customer identity in audit metadata. Trusted payment writes schedule cart conversion after the tenant transaction commits, avoiding customer/order lock inversion; keep lazy cart synchronization as crash recovery.
+
+## Customer lifecycle emails
+Queue customer emails after the tenant transaction commits and capture scalar snapshot data so workers do not need a tenant database connection. Order shipped, delivered and cancelled events notify the order snapshot email; payment receipt emails fire only when fully paid (gateway review captures are excluded). Return approved/rejected and completed manual/gateway refunds notify once through the shared TenantOrderEmailService. Keep existing ReplacementStatusChanged emails instead of adding duplicate decision emails.

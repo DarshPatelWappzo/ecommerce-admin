@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Mail\OrderConfirmed;
 use App\Models\Tenant\Customer;
 use App\Models\Tenant\Order;
 use App\Models\Tenant\User;
@@ -9,12 +10,13 @@ use App\Repositories\TenantOrderRepository;
 use Brick\Math\BigDecimal;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class TenantOrderService
 {
-    public function __construct(private readonly TenantOrderRepository $orders, private readonly TenantOrderCalculationService $calculator, private readonly TenantAuditLogService $audit, private readonly TenantCouponService $coupons, private readonly CustomerCartService $customerCarts) {}
+    public function __construct(private readonly TenantOrderRepository $orders, private readonly TenantOrderCalculationService $calculator, private readonly TenantAuditLogService $audit, private readonly TenantCouponService $coupons, private readonly CustomerCartService $customerCarts, private readonly TenantOrderEmailService $emails) {}
 
     /**
      * Create or update a draft order and persist the validated pricing snapshot.
@@ -211,6 +213,30 @@ class TenantOrderService
             $order->histories()->create(['from_status' => $from, 'to_status' => $target, 'comment' => $data['comment'] ?? null, 'changed_by' => ($actor instanceof User ? $actor->id : null), 'created_at' => now()]);
             $this->audit->recordSnapshot($order, TenantAuditAction::STATUS_CHANGED, ['status' => $from], ['status' => $target], $actor);
 
+            if (in_array($target, ['shipped', 'delivered', 'cancelled'], true)) {
+                $details = [];
+                if ($target === 'shipped') {
+                    foreach (['courier_name' => 'Courier', 'tracking_number' => 'Tracking number', 'tracking_url' => 'Tracking URL'] as $key => $label) {
+                        if (filled($data[$key] ?? null)) {
+                            $details[$label] = $data[$key];
+                        }
+                    }
+                }
+                $this->emails->send($order, 'Order ' . ucfirst($target), 'Your order has been ' . $target . '.', $details);
+            }
+
+            if ($target === 'confirmed' && filled($order->customer_email)) {
+                $email = $order->customer_email;
+                $mail = new OrderConfirmed($order->order_number, $order->customer_name, $order->currency, $order->grand_total);
+                DB::connection('tenant')->afterCommit(function () use ($email, $mail): void {
+                    try {
+                        Mail::to($email)->send($mail);
+                    } catch (\Throwable $exception) {
+                        report($exception);
+                    }
+                });
+            }
+
             return $this->orders->details($id);
         }, 3);
     }
@@ -263,7 +289,11 @@ class TenantOrderService
             }
             $payment = $order->payments()->create([...Arr::only($data, ['method', 'reference_number', 'amount', 'currency']), 'status' => 'captured', 'paid_at' => now(), 'recorded_by' => $actor->id]);
             $status = $captured->isEqualTo($order->grand_total) ? 'paid' : 'partially_paid';
+            $wasPaid = $order->payment_status === 'paid';
             $this->orders->save($order, ['payment_status' => $status]);
+            if ($status === 'paid' && ! $wasPaid) {
+                $this->emails->send($order, 'Payment Received', 'Full payment for your order has been received.', ['Amount' => $order->currency . ' ' . $order->grand_total]);
+            }
             if ($status === 'paid') {
                 $order->payments()->where('status', 'pending')->whereNull('gateway_payment_id')->update(['status' => 'superseded']);
             }

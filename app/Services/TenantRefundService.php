@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 class TenantRefundService
 {
-    public function __construct(private readonly RazorpayRefundGateway $gateway, private readonly TenantAuditLogService $audit) {}
+    public function __construct(private readonly RazorpayRefundGateway $gateway, private readonly TenantAuditLogService $audit, private readonly TenantOrderEmailService $emails) {}
 
     /** Reserve the immutable item amount under the order lock before contacting the gateway. */
     public function initiate(int $returnId, User $actor, bool $retry = false): Refund
@@ -62,7 +62,7 @@ class TenantRefundService
                         throw ValidationException::withMessages(['refund' => 'The refund exceeds the original gateway payment balance.']);
                     }
                 }
-                $refund = Refund::create(['refund_number' => 'RFN-'.now()->format('Ym').'-'.Str::ulid(), 'return_request_id' => $return->id, 'order_id' => $order->id, 'payment_id' => $payment->id, 'amount' => (string) $amount, 'currency' => $order->currency, 'payment_method' => $payment->method, 'gateway' => $payment->gateway === 'razorpay' ? 'razorpay' : null, 'status' => 'pending', 'initiated_at' => now(), 'created_by' => $actor->id]);
+                $refund = Refund::create(['refund_number' => 'RFN-' . now()->format('Ym') . '-' . Str::ulid(), 'return_request_id' => $return->id, 'order_id' => $order->id, 'payment_id' => $payment->id, 'amount' => (string) $amount, 'currency' => $order->currency, 'payment_method' => $payment->method, 'gateway' => $payment->gateway === 'razorpay' ? 'razorpay' : null, 'status' => 'pending', 'initiated_at' => now(), 'created_by' => $actor->id]);
                 $this->audit->recordSnapshot($refund, 'initiated', null, ['amount' => $refund->amount, 'actor_id' => $actor->id], $actor);
                 $this->setReturnStatus($return, 'refund_pending');
             }
@@ -172,6 +172,9 @@ class TenantRefundService
                 default => 'refund_processing'
             });
             $this->audit->recordSnapshot($refund, $status, null, ['status' => $status, 'gateway_refund_id' => $entity['id'], 'attempt_id' => $attempt->id]);
+            if ($status === 'processed') {
+                $this->notifyProcessed($refund, $return->order);
+            }
         }, 3);
     }
 
@@ -196,9 +199,18 @@ class TenantRefundService
             $this->setReturnStatus($return, 'refund_processing');
             $this->setReturnStatus($return, 'refunded');
             $this->audit->recordSnapshot($refund, 'manual_processed', null, ['status' => 'processed', 'actor_id' => $actor->id, 'method' => $input['manual_method'], 'reference' => $input['reference_number']], $actor);
+            $this->notifyProcessed($refund, $return->order);
 
             return $refund;
         }, 3);
+    }
+
+    private function notifyProcessed(Refund $refund, Order $order): void
+    {
+        $this->emails->send($order, 'Refund Completed', 'Your refund has been processed. Your payment provider may take additional time to credit the amount.', [
+            'Refund number' => $refund->refund_number,
+            'Amount' => $refund->currency . ' ' . $refund->amount,
+        ]);
     }
 
     private function setReturnStatus(ReturnRequest $return, string $status): void
