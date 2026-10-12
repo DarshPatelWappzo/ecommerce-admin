@@ -123,6 +123,17 @@
                     </a>
                 </div>
             @endif
+            @if (auth('tenant')->user()?->status === 'active' &&
+                    app(\App\Repositories\TenantRoleRepository::class)->userHasPermission(auth('tenant')->user(), 'plans.view'))
+                <div class="sidebar-group">
+                    <span class="sidebar-label">Subscription</span>
+                    <a class="sidebar-link {{ request()->routeIs('tenant.plans.*') ? 'active' : '' }}"
+                        href="{{ route('tenant.plans.index') }}" data-tooltip="Plans & Subscription">
+                        <i class="fa-solid fa-layer-group" aria-hidden="true"></i><span>Plans &amp;
+                            Subscription</span>
+                    </a>
+                </div>
+            @endif
             <div class="sidebar-group">
                 <span class="sidebar-label">System</span>
                 @if (auth('tenant')->user()?->status === 'active' &&

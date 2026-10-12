@@ -10,7 +10,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Http/** | .ai/rules/http.md |
 | app/Http/Middleware/ResolveTenant.php | .ai/rules/middleware.md |
 | app/Http/Requests/Tenant*UserUpdateRequest.php | .ai/rules/requests.md |
-| app/Services/TenantReturn*.php, app/Services/TenantRefund*.php, app/Services/RazorpayRefundGateway.php | .ai/rules/services-services.md |
+| app/Services/TenantReturn*.php, app/Services/TenantRefund*.php, app/Services/RazorpayRefundGateway.php, app/Services/*Subscription*.php, app/Services/PackagePricingService.php, app/Services/InfrastructureCostEstimator.php | .ai/rules/services-services.md |
 | app/Services/TenantOrder*.php, app/Services/TenantCoupon*.php, app/Services/TenantPaymentService.php, app/Services/TenantOrderService.php, app/Services/TenantInvoice*.php, app/Services/Customer*.php, app/Services/Tenant*.php | .ai/rules/services.md |
 | database/migrations/tenant/** | .ai/rules/tenant.md |
 | resources/views/**/index.blade.php | .ai/rules/views.md |

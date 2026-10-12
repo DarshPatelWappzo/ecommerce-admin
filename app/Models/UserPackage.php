@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['user_id', 'package_id', 'start_date', 'end_date', 'status'])]
+#[Fillable(['user_id', 'package_id', 'start_date', 'end_date', 'status', 'billing_cycle', 'grace_expires_at'])]
 class UserPackage extends Model
 {
     /** @use HasFactory<UserPackageFactory> */
@@ -30,6 +30,7 @@ class UserPackage extends Model
         return [
             'start_date' => 'datetime',
             'end_date' => 'datetime',
+            'grace_expires_at' => 'datetime',
         ];
     }
 }

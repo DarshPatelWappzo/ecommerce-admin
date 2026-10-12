@@ -16,6 +16,7 @@ use App\Http\Controllers\TenantInvoiceController;
 use App\Http\Controllers\TenantOrderController;
 use App\Http\Controllers\TenantPaymentController;
 use App\Http\Controllers\TenantPaymentGatewayController;
+use App\Http\Controllers\TenantPlansController;
 use App\Http\Controllers\TenantProductController;
 use App\Http\Controllers\TenantReplacementController;
 use App\Http\Controllers\TenantReturnController;
@@ -48,6 +49,7 @@ Route::prefix('tenant')->name('tenant.')->group(function (): void {
             ->name('dashboard');
 
         Route::middleware(RequireTenantPasswordChange::class)->group(function (): void {
+            Route::get('settings/plans', [TenantPlansController::class, 'index'])->name('plans.index');
             Route::get('settings/payment-gateways', [TenantPaymentGatewayController::class, 'index'])->name('payment-gateways.index');
             Route::put('settings/payment-gateways', [TenantPaymentGatewayController::class, 'update'])->name('payment-gateways.update');
             Route::delete('settings/payment-gateways/versions/{version}', [TenantPaymentGatewayController::class, 'retire'])->whereNumber('version')->name('payment-gateways.retire');

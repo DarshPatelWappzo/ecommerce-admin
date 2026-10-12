@@ -1,4 +1,4 @@
-<form data-package-form method="POST" action="{{ $action }}">
+<form id="package-form" data-package-form novalidate method="POST" action="{{ $action }}">
     @csrf
     @if ($method !== 'POST')
         @method($method)
@@ -13,6 +13,8 @@
         @enderror
     </span>
 
+    @include('super-admin.package._subscription')
+    <h2 class="h5 mt-4">Infrastructure planning</h2>
     <div class="row g-4">
         @foreach (['name' => 'Package name', 'slug' => 'Slug', 'infrastructure_summary' => 'Infrastructure summary'] as $field => $label)
             <div class="col-md-{{ $field === 'infrastructure_summary' ? '12' : '6' }}">
@@ -30,7 +32,7 @@
                 </span>
             </div>
         @endforeach
-        @foreach (['min_monthly_users' => 'Min monthly users', 'max_monthly_users' => 'Max monthly users', 'min_monthly_cost' => 'Min monthly cost', 'max_monthly_cost' => 'Max monthly cost', 'application_servers' => 'Application servers'] as $field => $label)
+        @foreach (['min_monthly_users' => 'Min monthly users', 'max_monthly_users' => 'Max monthly users', 'min_monthly_cost' => 'Minimum estimated infrastructure cost', 'max_monthly_cost' => 'Maximum estimated infrastructure cost', 'application_servers' => 'Application servers'] as $field => $label)
             <div class="col-md-4">
                 <label class="form-label" for="{{ $field }}">{{ $label }}</label>
                 <input class="form-control" id="{{ $field }}" name="{{ $field }}" type="text"
@@ -125,6 +127,8 @@
 
 @once
     @push('scripts')
+        <script src="{{ asset('vendor/jsvalidation/js/jsvalidation.js') }}"></script>
+        {!! JsValidator::formRequest(\App\Http\Requests\SuperAdminPackageStoreRequest::class, '#package-form') !!}
         <script>
             (() => {
                 const form = document.querySelector('[data-package-form]');
@@ -144,6 +148,9 @@
 
                 form.addEventListener('submit', async (event) => {
                     event.preventDefault();
+                    if (window.jQuery && !window.jQuery(form).valid()) {
+                        return;
+                    }
 
                     form.querySelectorAll('[data-error-for]').forEach((error) => {
                         error.textContent = '';
@@ -185,7 +192,8 @@
 
                 form.querySelectorAll('input, textarea, select').forEach((field) => {
                     const clearFieldError = () => {
-                        const error = form.querySelector(`[data-error-for="${field.name}"]`);
+                        const error = form.querySelector(
+                            `[data-error-for="${field.name.replace(/\[([^\]]+)\]/g, '.$1')}"]`);
                         if (error && field.value.trim() !== '') {
                             error.textContent = '';
                         }

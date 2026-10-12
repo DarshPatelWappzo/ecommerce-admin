@@ -34,11 +34,25 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'sort_order',
     'is_recommended',
     'status',
+    'is_tenant_visible',
+    'public_infrastructure',
 ])]
 class Package extends Model
 {
     /** @use HasFactory<PackageFactory> */
     use Auditable, HasFactory, SoftDeletes;
+
+    protected $attributes = ['is_tenant_visible' => true, 'public_infrastructure' => false];
+
+    public function prices(): HasMany
+    {
+        return $this->hasMany(PackagePrice::class);
+    }
+
+    public function limits(): HasMany
+    {
+        return $this->hasMany(PackageLimit::class);
+    }
 
     public function userPackages(): HasMany
     {

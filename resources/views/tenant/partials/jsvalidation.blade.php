@@ -4,7 +4,8 @@
             const form = $(this);
             form.validate({
                 onsubmit: !form.is(
-                    '[data-product-form], [data-order-form], [data-order-action]'),
+                    '[data-product-form], [data-order-form], [data-order-action], [data-package-form]'
+                    ),
                 errorElement: 'span',
                 errorClass: 'field-error',
                 ignore: @json($validator['ignore']),

@@ -93,7 +93,7 @@ class PackageController extends Controller
     public function edit(Package $package): View
     {
         $data = [];
-        $data['package'] = $package;
+        $data['package'] = $package->load(['prices', 'limits']);
 
         return view('super-admin.package.edit', $data);
     }
