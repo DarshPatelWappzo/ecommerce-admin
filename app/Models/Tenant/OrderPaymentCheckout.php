@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['reference', 'order_id', 'gateway', 'gateway_account', 'gateway_order_id', 'amount', 'currency', 'status', 'requested_at', 'initiated_by'])]
+#[Fillable(['reference', 'order_id', 'gateway', 'gateway_account', 'payment_gateway_credential_id', 'gateway_order_id', 'amount', 'currency', 'status', 'requested_at', 'initiated_by'])]
 class OrderPaymentCheckout extends TenantModel
 {
     protected $attributes = ['status' => 'pending'];

@@ -154,7 +154,8 @@ Route::middleware(AuthenticateTenantToken::class)->group(function (): void {
     });
 });
 
-Route::post('tenant/payments/razorpay/webhook', OrderPaymentWebhookController::class)->name('api.tenant.payments.webhook');
+Route::post('tenant/payments/razorpay/webhook/{tenantId?}/{credentialId?}', OrderPaymentWebhookController::class)
+    ->whereNumber('tenantId')->whereNumber('credentialId')->name('api.tenant.payments.webhook');
 
 Route::prefix('customer')->name('api.customer.')->group(function (): void {
     Route::middleware(['throttle:10,1', ResolveTenant::class])->controller(CustomerAuthController::class)->group(function (): void {

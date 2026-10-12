@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 class TenantRefundService
 {
-    public function __construct(private readonly RazorpayRefundGateway $gateway, private readonly TenantAuditLogService $audit, private readonly TenantOrderEmailService $emails) {}
+    public function __construct(private readonly RazorpayRefundGateway $gateway, private readonly TenantAuditLogService $audit, private readonly TenantOrderEmailService $emails, private readonly PaymentGatewayService $gatewaySettings) {}
 
     /** Reserve the immutable item amount under the order lock before contacting the gateway. */
     public function initiate(int $returnId, User $actor, bool $retry = false): Refund
@@ -67,6 +67,7 @@ class TenantRefundService
                 $this->setReturnStatus($return, 'refund_pending');
             }
             if ($refund->gateway === 'razorpay') {
+                $this->gatewaySettings->versionFor($refund->payment);
                 $refund->attempts()->create(['idempotency_key' => (string) Str::uuid(), 'status' => 'processing']);
                 $refund->update(['status' => 'processing', 'gateway_refund_id' => null, 'failure_code' => null, 'failure_reason' => null, 'failed_at' => null]);
                 $this->setReturnStatus($return, 'refund_processing');
@@ -79,7 +80,7 @@ class TenantRefundService
         if ($dispatch) {
             $attempt = $refund->attempts()->latest('id')->firstOrFail();
             try {
-                $entity = $this->gateway->createRefund($refund->payment->gateway_payment_id, $this->gatewayPayload($refund, $attempt), $attempt->idempotency_key);
+                $entity = $this->gateway->createRefund($refund->payment->gateway_payment_id, $this->gatewayPayload($refund, $attempt), $attempt->idempotency_key, $this->gatewaySettings->versionFor($refund->payment));
                 $this->applyGateway($attempt->id, $entity);
             } catch (OrderPaymentGatewayException) {
                 $this->audit->recordSnapshot($refund, 'reconciliation_required', null, ['status' => 'processing', 'attempt_id' => $attempt->id]);
@@ -97,9 +98,10 @@ class TenantRefundService
             throw ValidationException::withMessages(['refund' => 'This is a manual refund.']);
         }
         $attempt = $refund->attempts->sortByDesc('id')->first();
-        $entity = $attempt->gateway_refund_id ? $this->gateway->fetchRefund($attempt->gateway_refund_id) : $this->gateway->findRefund($refund->payment->gateway_payment_id, $attempt->idempotency_key);
+        $version = $this->gatewaySettings->versionFor($refund->payment);
+        $entity = $attempt->gateway_refund_id ? $this->gateway->fetchRefund($attempt->gateway_refund_id, $version) : $this->gateway->findRefund($refund->payment->gateway_payment_id, $attempt->idempotency_key, $version);
         if (! $entity && $refund->status === 'processing') {
-            $entity = $this->gateway->createRefund($refund->payment->gateway_payment_id, $this->gatewayPayload($refund, $attempt), $attempt->idempotency_key);
+            $entity = $this->gateway->createRefund($refund->payment->gateway_payment_id, $this->gatewayPayload($refund, $attempt), $attempt->idempotency_key, $version);
         }
         if ($entity) {
             $this->applyGateway($attempt->id, $entity);

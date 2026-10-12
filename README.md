@@ -369,32 +369,52 @@ Focused tests: `php artisan test --compact tests/Feature/TenantCouponTest.php te
 
 ## Customer order payments
 
-This module handles purchases made from tenant stores through the existing **tenant staff** admin/API. It does not add a storefront or customer authentication. It extends tenant `order_payments`; central `packages` and `user_packages` are unchanged. There is no Razorpay subscription implementation in this repository to reuse.
+This module handles tenant-store purchases through the existing tenant staff and customer checkout APIs. It extends tenant `order_payments`; central `packages` and `user_packages` are unchanged. It does not implement SaaS subscription payments.
 
 ### Installation and configuration
 
-Run `composer install` to install the locked official `razorpay/razorpay` PHP SDK (2.9.3). Apply the two additive tenant migrations using `php artisan tenant:migrate-all --no-interaction`:
+The existing Razorpay package remains installed; tenant requests now use request-local Laravel HTTP clients to avoid the SDK's static credential state. Apply pending tenant migrations using `php artisan tenant:migrate-all --no-interaction`:
 
 - `2026_09_28_061707_extend_order_payments_for_gateway_processing.php`: payment failure/verification timestamps, `order_payment_checkouts`, and `order_payment_events`.
 - `2026_09_28_061708_add_payment_management_permissions.php`: `payments.view`, automatically granted to existing Admin roles. New provisioning also includes it.
+- `2026_10_10_052518_create_payment_gateways_tables.php`: tenant gateway settings, credential versions, and nullable version references on checkouts/payments. Existing payment rows are preserved and are not automatically assigned credentials.
+- `2026_10_10_052519_add_payment_gateway_permissions.php`: `payment_gateways.view` and `payment_gateways.update`, granted to existing Admin roles and included in new tenant provisioning.
 
-Configure these deployment variables (names/placeholders are in `.env.example`; no secrets belong in Git):
+Only offline method availability remains deployment-wide:
 
 | Variable | Purpose |
 | --- | --- |
 | `ORDER_PAYMENTS_COD_ENABLED` | Enable COD selection/collection; defaults true |
 | `ORDER_PAYMENTS_CASH_ENABLED` | Enable existing cash receipts; defaults true |
 | `ORDER_PAYMENTS_BANK_TRANSFER_ENABLED` | Enable existing bank receipts; defaults true |
-| `ORDER_PAYMENTS_RAZORPAY_ENABLED` | Enable new Razorpay checkouts; defaults false |
-| `ORDER_RAZORPAY_KEY_ID` | Customer-order public key ID |
-| `ORDER_RAZORPAY_KEY_SECRET` | Customer-order API/signature secret |
-| `ORDER_RAZORPAY_WEBHOOK_SECRET` | Separate webhook signing secret |
 
-These deployment-wide settings live in `config/order_payments.php`; no tenant payment-settings system existed. Keep these credentials independent of package/subscription credentials. Configure automatic capture in the Razorpay Dashboard. Authorization alone remains pending; only server-verified captured funds mark an order paid. Disabling new checkouts does not disable verification or webhooks for existing ones. Retain the original account credentials to reconcile outstanding checkouts.
+Razorpay is configured separately for each tenant under **Settings > Payment Gateways**. Test/live values use Laravel `encrypted:array` casts and the existing application encryption key. Secrets are hidden from serialization, HTML, JSON, session old input, and audit snapshots. Blank fields retain existing values; webhook-secret removal is explicit. Disabling new checkouts preserves historical verification, reconciliation and refunds. Configure automatic capture in Razorpay: authorization alone remains pending.
 
-Register an HTTPS webhook for **POST `/api/tenant/payments/razorpay/webhook`**, subscribing to `payment.authorized`, `payment.captured`, `payment.failed`, and `order.paid`. This route has no bearer authentication or browser CSRF; it authenticates the unmodified raw body using `X-Razorpay-Signature` and the separate secret. Razorpay's `X-Razorpay-Event-Id` is deduplicated in the selected tenant database (a raw-body hash is used when absent). Only event IDs, type, digest, provider payment ID, and processing time are persisted, never full gateway payloads.
+Register the HTTPS URL copied from the settings page: **POST `/api/tenant/payments/razorpay/webhook/{tenantId}/{credentialId}`**. Subscribe to `payment.authorized`, `payment.captured`, `payment.failed`, `order.paid`, `refund.created`, `refund.processed`, and `refund.failed`. No login or bearer token is required; raw-body signatures authenticate deliveries. The old parameterless URL fails closed with 404. Payment event IDs are deduplicated (raw-body hash when absent); refund transitions remain idempotent. Full webhook bodies are not persisted.
 
-After signature verification, the application fetches the provider order using its own SDK credentials and resolves the central tenant ID from **server-created provider order notes**. It checks the local checkout reference, amount, currency, and provider account again inside the selected tenant. It never accepts a tenant header/body ID as payment ownership. Unrelated subscription/package events are ignored. Failed processing returns a retryable 503; invalid signatures return 401.
+The URL selects an active central tenant and a credential version inside that tenant database before signature verification. Provider-fetched order notes must confirm the same tenant; they never redirect processing into another database. Local checkout, version, reference, amount, currency, and payment identities must match. Invalid signatures return 401 before provider requests. Unrelated events are ignored after verification. Connection cleanup runs on all paths, and rejection logs contain only tenant/version identifiers.
+
+### Existing tenant migration checklist
+
+1. Coordinate deployment with tenant administrators and pause new Razorpay checkouts while configuring accounts. Back up tenant databases and retain the existing `APP_KEY`. Do not run tenant migrations against the central database.
+2. Run `php artisan tenant:migrate-all --no-interaction`. Rebuild deployment configuration/routes as usual and restart long-running workers through the existing deployment process. No live migration, key change, real payment, or refund is required during code verification.
+3. For each tenant, enter the original merchant's test/live credentials manually. Save with Razorpay disabled first. **Test Saved Connection** makes only `GET /v1/orders?count=1`; it checks API authentication, not webhook setup, and never uses unsaved secrets.
+4. Review legacy records against original merchant-account evidence. If their stored `gateway_account` exactly matches the selected Key ID, explicitly confirm **Link unassigned legacy payments** and save. This binds only previously unassigned rows with that exact key. Never copy global platform credentials into every tenant.
+5. Records with missing/unknown merchant keys, or credentials no longer accepted by Razorpay, require an operator to establish the original account and payment identity. They remain intact but verification/refunds fail closed. Do not assign the new merchant account, delete a checkout, or create a replacement charge to bypass this check.
+6. Copy the current and required historical webhook URLs into the correct merchant accounts/environments with their matching secrets. Keep old URLs available while their payments/refunds can still receive events. Configure automatic capture and test in staging before enabling each tenant's chosen mode.
+7. Review retained historical versions periodically. The settings page can remove unused archived versions; current versions and versions referenced by payments/checkouts (or potentially needed by unassigned legacy records) are protected. Keep referenced secrets for recovery/refunds. Provider-side revocation still makes an old key unusable; encryption cannot restore revoked access.
+
+### Credential resolution and implementation inventory
+
+`PaymentGatewayRepository` reads only the active tenant connection. `PaymentGatewayService` merges settings under a row lock, validates active mode, returns explicitly safe UI arrays, performs confirmed legacy linking, and resolves immutable versions. Active secrets exist once on `payment_gateways`; rotation moves the old values into encrypted `payment_gateway_credentials.credentials` and creates a new metadata-only current version. Test/live modes have separate version histories. Checkout and ledger rows carry `payment_gateway_credential_id`; refunds resolve through their original payment. No credential/client cache or singleton retains a previous tenant's account.
+
+New components: `Tenant/PaymentGateway`, `Tenant/PaymentGatewayCredential`, `PaymentGatewayRepository`, `PaymentGatewayService`, `RazorpayClientFactory`, `TenantPaymentGatewayController`, `SavePaymentGatewayRequest`, `tenant/payment-gateways/index.blade.php`, and `public/js/payment-gateway-settings.js`.
+
+Settings routes: GET/PUT `tenant/settings/payment-gateways`, POST `tenant/settings/payment-gateways/test`, and DELETE `tenant/settings/payment-gateways/versions/{version}`. All use existing tenant session/authentication/active-user/password-change middleware and permission checks. Write forms retain CSRF, JSValidation, inline errors and Bootstrap/Blade conventions.
+
+Existing integration changes: `OrderPaymentGateway`, `RazorpayOrderGateway`, `RazorpayRefundGateway`, `TenantPaymentService`, `TenantRefundService`, `OrderPaymentWebhookController`, checkout/payment model fillable fields, routes, permission seeding/sidebar, and secret-field flash exclusion in `bootstrap/app.php`. Existing reconciliation commands use the same version-aware services without holding credentials between tenants. No SaaS subscription or package-payment functionality is introduced.
+
+Credential-reference inventory: production reads of `ORDER_RAZORPAY_KEY_ID`, `ORDER_RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `ORDER_RAZORPAY_WEBHOOK_SECRET`, `ORDER_PAYMENTS_RAZORPAY_ENABLED`, and `config('order_payments.razorpay.*')` were removed. `config/order_payments.php` retains the Razorpay display label and offline method switches only. No production `services.razorpay`, direct Razorpay `env()` usage, hardcoded merchant credential, or SDK `new Api(...)` constructor remains. Tests include a deliberate global-config decoy to prove no fallback; older replacement fixtures contain an inert webhook config assignment. Environment files were not inspected or modified.
 
 ### Staff API
 
@@ -434,7 +454,7 @@ COD collection POST body:
 
 The server collects the remaining balance, records staff ID and time, and returns `message` plus `data`. A second collection is rejected with 422. The older offline receipt endpoint still supports partial cash/COD/bank receipts and its existing `Idempotency-Key` contract.
 
-Payment list filters: `search` (order number/customer name/email), `method`, `status`, `from`, `to`, and `per_page`. Invalid filters/input return the established 422 `message/error_code/errors` envelope. List responses use the top-level paginator; individual payments use `data`. A reused webhook event ID with different content returns 409. Provider outages/configuration failures return a sanitized 503 without provider payloads, secrets, or exception traces.
+Payment list filters: `search` (order number/customer name/email), `method`, `status`, `from`, `to`, and `per_page`. Invalid filters/input return the established 422 `message/error_code/errors` envelope. List responses use the top-level paginator; individual payments use `data`. A reused webhook event ID with different content returns 409. New checkout requests for an unavailable/disabled tenant gateway return a 422 business error. Provider outages and unavailable historical credentials return sanitized errors without provider payloads or secrets.
 
 ### State, retries, and admin
 
@@ -444,7 +464,7 @@ One durable checkout is reserved per order before contacting Razorpay. Repeated/
 
 If order creation times out after possibly reaching Razorpay, subsequent initiation searches by the original UUID receipt. It never blindly creates a second provider order. If no matching order can yet be found (including a process stopping between reserving a checkout and sending the request), the checkout remains pending and returns 503 for operational reconciliation. Do not delete/reset that record until the provider account has been checked.
 
-Once an online checkout is reserved, offline collection and cancellation are blocked because the provider order can still accept payment. Refunds, refund reconciliation, switching providers after initiation, partial online payments, and cancellation of active gateway checkouts are not implemented. Externally refunded payments are rejected for manual reconciliation; this module does not initiate refunds. Keep gateway account credentials stable while payments are outstanding. The SDK uses its own 60-second request timeout.
+Once an online checkout is reserved, offline collection and cancellation stay blocked because the provider order can still accept payment. Existing return/refund services retain their reservations and idempotent recovery. Checkout verification still rejects externally refunded payment amounts for manual reconciliation. Tenant provider requests have a 5-second connect timeout and 20-second total timeout, do not follow redirects, and do not automatically retry transaction submissions. Historical operations continue to use the original version after mode/account changes.
 
 Admin screens: `/tenant/payments` (search/filter/pagination), `/tenant/payments/{payment}` (method, status, IDs, reference, failure details, recorded staff, timeline), and the expanded `/tenant/orders/{order}` (attempts, collected/outstanding totals, gateway checkout, timeline, COD collection). Payments appears in the sidebar for `payments.view`; collection uses the existing `orders.payments` permission.
 
@@ -454,6 +474,6 @@ Verification:
 php artisan test --compact tests/Feature/TenantPaymentTest.php tests/Feature/TenantOrderManagementTest.php tests/Feature/TenantCouponTest.php tests/Feature/TenantApiAuthenticationTest.php
 ```
 
-Gateway network calls are mocked while the real SDK signature verifier runs. Tests exercise tenant routing/isolation, permissions, totals snapshots, COD, signature and amount mismatches, authorized/captured states, replay ordering, failures/retries, and paid-order protection. SQLite tests do not prove simultaneous MySQL/InnoDB locking; perform concurrency and Razorpay test-mode end-to-end checks in staging before accepting real payments.
+Gateway network calls are mocked while the actual HMAC verification runs. `TenantPaymentGatewayTest` adds encryption, secret retention/rotation/removal, settings authorization, session secrecy, test/live selection, no global fallback, request-local merchant authentication, historical refunds/webhooks, and multi-tenant background reconciliation. Run it alongside `TenantPaymentTest`, `TenantReturnRefundTest`, and `CustomerShoppingTest`. JavaScript coverage includes `tests/Unit/payment-gateway-settings.test.js`. SQLite tests do not prove simultaneous MySQL/InnoDB locking; perform concurrency, browser/responsive, and Razorpay test-mode end-to-end checks in staging before accepting real payments.
 
 Official references: [PHP integration](https://razorpay.com/docs/payments/server-integration/php/integration-steps/), [webhook verification and duplicate handling](https://razorpay.com/docs/webhooks/validate-test/), [order receipt lookup](https://razorpay.com/docs/api/orders/fetch-all/).

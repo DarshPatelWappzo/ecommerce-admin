@@ -49,12 +49,22 @@ return new class extends Migration
             $table->timestamps();
             $table->index(['cart_id', 'converted_at']);
         });
-        Schema::table('orders', fn(Blueprint $table) => $table->index(['customer_id', 'order_date', 'id'], 'orders_customer_history_index'));
+        Schema::table('orders', fn (Blueprint $table) => $table->index(['customer_id', 'order_date', 'id'], 'orders_customer_history_index'));
     }
 
     public function down(): void
     {
-        Schema::table('orders', fn(Blueprint $table) => $table->dropIndex('orders_customer_history_index'));
+        if (Schema::hasIndex('orders', 'orders_customer_history_index')) {
+            /** MySQL may replace the original foreign-key index with this covering index. */
+            $hasCustomerIndex = collect(Schema::getIndexes('orders'))->contains(
+                fn (array $index): bool => $index['name'] !== 'orders_customer_history_index'
+                    && ($index['columns'][0] ?? null) === 'customer_id'
+            );
+            if (! $hasCustomerIndex) {
+                Schema::table('orders', fn (Blueprint $table) => $table->index('customer_id', 'orders_customer_id_foreign'));
+            }
+            Schema::table('orders', fn (Blueprint $table) => $table->dropIndex('orders_customer_history_index'));
+        }
         foreach (['cart_orders', 'wishlists', 'cart_items', 'carts'] as $table) {
             Schema::dropIfExists($table);
         }

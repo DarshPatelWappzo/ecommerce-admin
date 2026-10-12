@@ -218,7 +218,7 @@ Central auditing uses `Auditable` and `AuditLogService`. Tenant audit services/a
 | Tenant browser   | /tenant/login, dashboard, users, roles, categories, products, catalog settings, taxes, customers, coupons, orders, payments, invoices, returns, replacements, audit logs              |
 | Staff API        | /api/tenant/login, logout/password change, users, categories, products, catalog settings, customers/addresses, orders, coupons, payments, invoices, returns, replacements, audit logs |
 | Customer API     | /api/customer/auth/\*, reasons, purchased-item eligibility/create endpoints, own return/replacement lists/details                                                                     |
-| Razorpay webhook | POST /api/tenant/payments/razorpay/webhook                                                                                                                                            |
+| Razorpay webhook | POST /api/tenant/payments/razorpay/webhook/{tenantId}/{credentialId} |
 | Central API      | GET /api/users and POST /api/users; see access-control exception above                                                                                                                |
 
 Do not infer full CRUD support from this map. Routes, Form Requests, controllers, and resources determine exact verbs, fields, permissions, and response envelopes. Existing APIs mix resources and explicit JSON; preserve their contracts.
@@ -260,12 +260,12 @@ Generate the key only during initial setup. `DatabaseSeeder` is the source for t
 | --------------------------------------------------- | --------------------------------------------------- |
 | config/database.php                                 | Central default and dynamic tenant MySQL connection |
 | config/auth.php and config/sanctum.php              | Guards, providers, tokens                           |
-| config/order_payments.php                           | Enabled methods and Razorpay keys                   |
+| config/order_payments.php                           | Offline method switches and Razorpay label          |
 | config/invoices.php                                 | Prefix, draft review, tenant seller settings        |
 | config/customer_locations.php                       | Address country/state choices                       |
 | config/mail.php, config/queue.php, config/cache.php | Delivery, queued work, locks/throttling             |
 
-Payment environment names include ORDER_PAYMENTS_COD_ENABLED, ORDER_PAYMENTS_CASH_ENABLED, ORDER_PAYMENTS_BANK_TRANSFER_ENABLED, ORDER_PAYMENTS_RAZORPAY_ENABLED, ORDER_RAZORPAY_KEY_ID, and ORDER_RAZORPAY_KEY_SECRET. Webhook configuration prefers RAZORPAY_WEBHOOK_SECRET and falls back to ORDER_RAZORPAY_WEBHOOK_SECRET. Razorpay is disabled by default.
+Offline payment switches remain environment-backed. Razorpay credentials and availability are tenant-specific encrypted database settings with separate test/live modes and immutable historical versions. See README's existing-tenant migration checklist. The global Razorpay credential fallback has been removed; unconfigured tenants cannot create new Razorpay payments.
 
 ## 10. Maintenance and scheduled work
 

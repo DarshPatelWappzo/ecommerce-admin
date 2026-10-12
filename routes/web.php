@@ -15,6 +15,7 @@ use App\Http\Controllers\TenantCustomerController;
 use App\Http\Controllers\TenantInvoiceController;
 use App\Http\Controllers\TenantOrderController;
 use App\Http\Controllers\TenantPaymentController;
+use App\Http\Controllers\TenantPaymentGatewayController;
 use App\Http\Controllers\TenantProductController;
 use App\Http\Controllers\TenantReplacementController;
 use App\Http\Controllers\TenantReturnController;
@@ -47,6 +48,10 @@ Route::prefix('tenant')->name('tenant.')->group(function (): void {
             ->name('dashboard');
 
         Route::middleware(RequireTenantPasswordChange::class)->group(function (): void {
+            Route::get('settings/payment-gateways', [TenantPaymentGatewayController::class, 'index'])->name('payment-gateways.index');
+            Route::put('settings/payment-gateways', [TenantPaymentGatewayController::class, 'update'])->name('payment-gateways.update');
+            Route::delete('settings/payment-gateways/versions/{version}', [TenantPaymentGatewayController::class, 'retire'])->whereNumber('version')->name('payment-gateways.retire');
+            Route::post('settings/payment-gateways/test', [TenantPaymentGatewayController::class, 'testConnection'])->middleware('throttle:5,1')->name('payment-gateways.test');
             Route::get('audit-logs', [TenantAuditLogController::class, 'index'])->name('audit-logs.index');
             Route::get('audit-logs/{auditLog}', [TenantAuditLogController::class, 'show'])->whereNumber('auditLog')->name('audit-logs.show');
             Route::prefix('replacements')->name('replacements.')->controller(TenantReplacementController::class)->group(function (): void {

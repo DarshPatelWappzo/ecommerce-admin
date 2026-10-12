@@ -22,6 +22,7 @@ class TenantPaymentService
         private readonly TenantAuditLogService $audit,
         private readonly CustomerCartService $customerCarts,
         private readonly TenantOrderEmailService $emails,
+        private readonly PaymentGatewayService $gatewaySettings,
     ) {}
 
     /** @return array<string, string> Enabled method labels, never credentials. */
@@ -29,7 +30,7 @@ class TenantPaymentService
     {
         $methods = [];
         foreach (config('order_payments.methods', []) as $name => $settings) {
-            if ($settings['enabled']) {
+            if ($name === 'razorpay' ? app(PaymentGatewayService::class)->available() : $settings['enabled']) {
                 $methods[$name] = $settings['label'];
             }
         }
@@ -56,9 +57,10 @@ class TenantPaymentService
     public function initiate(int $id, User|Customer $actor, int $tenantDatabaseId): array
     {
         self::requireEnabled($this->gateway->name());
-        $this->gateway->ensureConfigured();
         [$checkout, $create] = DB::connection('tenant')->transaction(function () use ($id, $actor): array {
             $order = $this->orders->find($id, true);
+            $activeVersion = $this->gatewaySettings->activeVersion();
+            $this->gateway->ensureConfigured($activeVersion);
             $this->eligible($order);
             if ($this->orderService->captured($order)->isGreaterThan(0)) {
                 throw ValidationException::withMessages(['order' => 'Online checkout requires an order with no collected payments.']);
@@ -66,7 +68,8 @@ class TenantPaymentService
             $checkout = $order->paymentCheckout()->firstOrCreate([], [
                 'reference' => (string) Str::uuid(),
                 'gateway' => $this->gateway->name(),
-                'gateway_account' => $this->gateway->publicKey(),
+                'gateway_account' => $this->gateway->publicKey($activeVersion),
+                'payment_gateway_credential_id' => $activeVersion,
                 'amount' => $order->grand_total,
                 'currency' => $order->currency,
                 'initiated_by' => ($actor instanceof User ? $actor->id : null),
@@ -79,16 +82,30 @@ class TenantPaymentService
             $order->update(['payment_status' => 'pending']);
 
             return [$checkout, $create];
-        });
+        }, 3);
 
         if (! $checkout->gateway_order_id) {
-            $providerOrder = $create ? $this->gateway->createOrder([
-                'receipt' => $checkout->reference,
-                'amount' => self::minorUnits($checkout->amount),
-                'currency' => $checkout->currency,
-                'partial_payment' => false,
-                'notes' => ['purpose' => 'tenant_order', 'tenant_database_id' => (string) $tenantDatabaseId, 'checkout_reference' => $checkout->reference],
-            ]) : $this->gateway->findOrder($checkout->reference);
+            try {
+                $providerOrder = $create ? $this->gateway->createOrder([
+                    'receipt' => $checkout->reference,
+                    'amount' => self::minorUnits($checkout->amount),
+                    'currency' => $checkout->currency,
+                    'partial_payment' => false,
+                    'notes' => ['purpose' => 'tenant_order', 'tenant_database_id' => (string) $tenantDatabaseId, 'checkout_reference' => $checkout->reference],
+                ], $checkout->payment_gateway_credential_id) : $this->gateway->findOrder($checkout->reference, $checkout->payment_gateway_credential_id);
+            } catch (OrderPaymentGatewayException $exception) {
+                if ($create && $exception->creationRejected) {
+                    DB::connection('tenant')->transaction(function () use ($checkout): void {
+                        $this->orders->find($checkout->order_id, true);
+                        $checkout->refresh();
+                        if (! $checkout->gateway_order_id) {
+                            $checkout->update(['requested_at' => null]);
+                        }
+                    }, 3);
+                }
+
+                throw $exception;
+            }
             if (! $providerOrder) {
                 throw new OrderPaymentGatewayException;
             }
@@ -104,6 +121,7 @@ class TenantPaymentService
                     'method' => $checkout->gateway,
                     'gateway' => $checkout->gateway,
                     'gateway_account' => $checkout->gateway_account,
+                    'payment_gateway_credential_id' => $checkout->payment_gateway_credential_id,
                     'gateway_order_id' => $checkout->gateway_order_id,
                 ]);
             });
@@ -127,9 +145,9 @@ class TenantPaymentService
         if (! $checkout->gateway_order_id || $checkout->gateway_order_id !== $data['razorpay_order_id']) {
             throw ValidationException::withMessages(['razorpay_order_id' => 'This checkout does not belong to the order.']);
         }
-        $this->gateway->verifyPayment($checkout->gateway_order_id, $data['razorpay_payment_id'], $data['razorpay_signature']);
-        $providerOrder = $this->gateway->fetchOrder($checkout->gateway_order_id);
-        $payment = $this->gateway->fetchPayment($data['razorpay_payment_id']);
+        $this->gateway->verifyPayment($checkout->gateway_order_id, $data['razorpay_payment_id'], $data['razorpay_signature'], $checkout->payment_gateway_credential_id);
+        $providerOrder = $this->gateway->fetchOrder($checkout->gateway_order_id, $checkout->payment_gateway_credential_id);
+        $payment = $this->gateway->fetchPayment($data['razorpay_payment_id'], $checkout->payment_gateway_credential_id);
         if (($payment['id'] ?? null) !== $data['razorpay_payment_id']) {
             throw ValidationException::withMessages(['payment' => 'The provider payment does not match.']);
         }
@@ -148,8 +166,8 @@ class TenantPaymentService
         }
         $this->matchingAccount($checkout);
         $providerOrder = $checkout->gateway_order_id
-            ? $this->gateway->fetchOrder($checkout->gateway_order_id)
-            : $this->gateway->findOrder($checkout->reference);
+            ? $this->gateway->fetchOrder($checkout->gateway_order_id, $checkout->payment_gateway_credential_id)
+            : $this->gateway->findOrder($checkout->reference, $checkout->payment_gateway_credential_id);
         if (! $providerOrder) {
             throw new OrderPaymentGatewayException;
         }
@@ -160,7 +178,7 @@ class TenantPaymentService
             $this->assertProviderOrder($checkout, $providerOrder, $tenantDatabaseId);
             $checkout->update(['gateway_order_id' => $providerOrder['id']]);
         }, 3);
-        foreach ($this->gateway->fetchOrderPayments($providerOrder['id']) as $payment) {
+        foreach ($this->gateway->fetchOrderPayments($providerOrder['id'], $checkout->payment_gateway_credential_id) as $payment) {
             if (! is_array($payment)) {
                 throw new OrderPaymentGatewayException;
             }
@@ -240,6 +258,7 @@ class TenantPaymentService
                     'method' => $checkout->gateway,
                     'gateway' => $checkout->gateway,
                     'gateway_account' => $checkout->gateway_account,
+                    'payment_gateway_credential_id' => $checkout->payment_gateway_credential_id,
                     'gateway_order_id' => $providerOrder['id'],
                     'gateway_payment_id' => $entity['id'],
                     'reference_number' => $entity['id'],
@@ -272,7 +291,7 @@ class TenantPaymentService
                 $wasPaid = $order->payment_status === 'paid';
                 $order->update(['payment_status' => $status]);
                 if ($status === 'paid' && ! $wasPaid && $checkout->status === 'paid') {
-                    $this->emails->send($order, 'Payment Received', 'Full payment for your order has been received.', ['Amount' => $order->currency . ' ' . $order->grand_total]);
+                    $this->emails->send($order, 'Payment Received', 'Full payment for your order has been received.', ['Amount' => $order->currency.' '.$order->grand_total]);
                 }
                 if ($previousStatus !== $payment->status) {
                     $this->audit->recordSnapshot($payment, TenantAuditAction::GATEWAY_PAYMENT_RECONCILED, ['attempt_status' => $previousStatus], [
@@ -288,7 +307,7 @@ class TenantPaymentService
             if ($event) {
                 $checkout->events()->create([...$event, 'gateway_payment_id' => $entity['id'], 'processed_at' => now()]);
             }
-            DB::connection('tenant')->afterCommit(fn() => $this->customerCarts->completeOrder($order->id));
+            DB::connection('tenant')->afterCommit(fn () => $this->customerCarts->completeOrder($order->id));
         }, 3);
     }
 
@@ -325,7 +344,8 @@ class TenantPaymentService
 
     private function matchingAccount(OrderPaymentCheckout $checkout): void
     {
-        if ($checkout->gateway !== $this->gateway->name() || $checkout->gateway_account !== $this->gateway->publicKey()) {
+        $version = $this->gatewaySettings->versionFor($checkout);
+        if ($checkout->gateway !== $this->gateway->name() || $checkout->gateway_account !== $this->gateway->publicKey($version)) {
             throw ValidationException::withMessages(['payment' => 'The original provider account must be configured to reconcile this checkout.']);
         }
     }

@@ -8,6 +8,11 @@ use RuntimeException;
 
 class OrderPaymentGatewayException extends RuntimeException implements ShouldntReport
 {
+    public function __construct(public readonly bool $creationRejected = false)
+    {
+        parent::__construct();
+    }
+
     public function render(): JsonResponse
     {
         return response()->json([

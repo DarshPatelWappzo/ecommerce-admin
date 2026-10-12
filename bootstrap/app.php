@@ -32,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(SubstituteBindings::class, AuthenticateCustomerToken::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontFlash(['test_key_id', 'test_key_secret', 'test_webhook_secret', 'live_key_id', 'live_key_secret', 'live_webhook_secret']);
         $exceptions->render(function (Throwable $exception, Request $request): ?JsonResponse {
             if (
                 ! $request->routeIs('api.tenant.payments.*', 'api.tenant.orders.payments.*', 'api.tenant.orders.payment-status', 'tenant.orders.payments.*', 'tenant.orders.payment-status')

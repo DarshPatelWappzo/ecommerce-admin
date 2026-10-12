@@ -112,6 +112,17 @@
                     </a>
                 @endif
             </div>
+            @if (auth('tenant')->user()?->status === 'active' &&
+                    app(\App\Repositories\TenantRoleRepository::class)->userHasPermission(auth('tenant')->user(),
+                        'payment_gateways.view'))
+                <div class="sidebar-group">
+                    <span class="sidebar-label">Settings</span>
+                    <a class="sidebar-link {{ request()->routeIs('tenant.payment-gateways.*') ? 'active' : '' }}"
+                        href="{{ route('tenant.payment-gateways.index') }}" data-tooltip="Payment Gateways">
+                        <i class="fa-solid fa-credit-card" aria-hidden="true"></i><span>Payment Gateways</span>
+                    </a>
+                </div>
+            @endif
             <div class="sidebar-group">
                 <span class="sidebar-label">System</span>
                 @if (auth('tenant')->user()?->status === 'active' &&
