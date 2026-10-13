@@ -9,11 +9,16 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['user_id', 'package_id', 'start_date', 'end_date', 'status', 'billing_cycle', 'grace_expires_at'])]
+#[Fillable(['user_id', 'package_id', 'start_date', 'end_date', 'status', 'billing_cycle', 'grace_expires_at', 'tenant_database_id', 'package_payment_id', 'mode', 'price_snapshot'])]
 class UserPackage extends Model
 {
     /** @use HasFactory<UserPackageFactory> */
     use HasFactory, SoftDeletes;
+
+    public function getConnectionName(): string
+    {
+        return config('subscriptions.connection');
+    }
 
     public function user(): BelongsTo
     {
@@ -28,6 +33,7 @@ class UserPackage extends Model
     protected function casts(): array
     {
         return [
+            'price_snapshot' => 'array',
             'start_date' => 'datetime',
             'end_date' => 'datetime',
             'grace_expires_at' => 'datetime',

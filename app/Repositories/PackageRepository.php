@@ -16,9 +16,14 @@ class PackageRepository
     /** @return Collection<int, Package> */
     public function catalog(): Collection
     {
-        return Package::query()->where('status', 'active')->where('is_tenant_visible', true)
-            ->with(['prices' => fn($query) => $query->where('is_active', true)->where('currency', config('subscriptions.currency')), 'limits'])
-            ->orderBy('sort_order')->orderBy('id')->get();
+        return Package::on(config('subscriptions.connection'))
+            ->where('status', 'active')
+            ->where('is_tenant_visible', true)
+            ->with(['prices' => fn($query) => $query->where('is_active', true)
+                ->where('currency', config('subscriptions.currency')), 'limits'])
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
     }
 
     /**

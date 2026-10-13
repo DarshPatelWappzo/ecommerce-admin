@@ -37,6 +37,12 @@
             </div>
             <div class="sidebar-group">
                 <span class="sidebar-label">System</span>
+                @if (auth()->user()?->is_super_admin)
+                    <a class="sidebar-link {{ request()->routeIs('super-admin.platform-payments.*') ? 'active' : '' }}"
+                        href="{{ route('super-admin.platform-payments.index') }}"
+                        data-tooltip="Payment Configuration"><i class="fa-solid fa-credit-card"
+                            aria-hidden="true"></i><span>Payment Configuration</span></a>
+                @endif
                 <a class="sidebar-link {{ request()->routeIs('super-admin.audit-logs.*') ? 'active' : '' }}"
                     href="{{ route('super-admin.audit-logs.index') }}" data-tooltip="Audit logs"><i
                         class="fa-solid fa-clipboard-list" aria-hidden="true"></i><span>Audit logs</span></a>

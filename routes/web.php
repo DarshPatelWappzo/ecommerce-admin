@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\PackagePaymentController;
 use App\Http\Controllers\SuperAdmin\AuditLogController;
 use App\Http\Controllers\SuperAdmin\AuthController;
 use App\Http\Controllers\SuperAdmin\PackageController;
+use App\Http\Controllers\SuperAdmin\PlatformGatewayController;
 use App\Http\Controllers\SuperAdmin\TenantProvisioningController;
 use App\Http\Controllers\SuperAdmin\UserController;
 use App\Http\Controllers\TenantAuditLogController;
@@ -49,6 +51,11 @@ Route::prefix('tenant')->name('tenant.')->group(function (): void {
             ->name('dashboard');
 
         Route::middleware(RequireTenantPasswordChange::class)->group(function (): void {
+            Route::controller(PackagePaymentController::class)->middleware('throttle:20,1')->group(function (): void {
+                Route::post('packages/{package}/checkout', 'checkout')->whereNumber('package')->name('package-payments.checkout');
+                Route::post('package-payments/{payment}/verify', 'verify')->whereNumber('payment')->name('package-payments.verify');
+                Route::get('package-payments/{payment}', 'show')->whereNumber('payment')->name('package-payments.show');
+            });
             Route::get('settings/plans', [TenantPlansController::class, 'index'])->name('plans.index');
             Route::get('settings/payment-gateways', [TenantPaymentGatewayController::class, 'index'])->name('payment-gateways.index');
             Route::put('settings/payment-gateways', [TenantPaymentGatewayController::class, 'update'])->name('payment-gateways.update');
@@ -161,6 +168,8 @@ Route::prefix('super-admin')->name('super-admin.')->group(function (): void {
         ->name('dashboard');
 
     Route::middleware(['auth', EnsureSuperAdmin::class])->group(function (): void {
+        Route::get('payment-configuration', [PlatformGatewayController::class, 'index'])->name('platform-payments.index');
+        Route::put('payment-configuration', [PlatformGatewayController::class, 'update'])->middleware('throttle:10,1')->name('platform-payments.update');
         Route::controller(UserController::class)->group(function (): void {
             Route::get('/admin', 'index')->name('admin.index');
             Route::get('/admin/create', 'create')->name('admin.create');

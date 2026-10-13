@@ -3,7 +3,7 @@
   "generated_on": "2026-10-07",
   "base_url": "http://127.0.0.1:8000",
   "scope": "All registered /api routes; PUT/PATCH aliases share an entry. Web/admin HTML routes are outside this reference.",
-  "endpoint_count": 104,
+  "endpoint_count": 111,
   "conventions": {
     "required": "required, optional, conditional or prohibited; nested requirements apply to each supplied parent object/array entry.",
     "fields": "Request fields only: path/query/body, with headers listed separately. Asterisk means each array element; items.*.quantity means items[0].quantity, etc.",
@@ -22503,6 +22503,385 @@
         "route": "routes/api.php",
         "controller": "App\\Http\\Controllers\\CustomerReturnController@show",
         "request": "app/Http/Requests/CustomerReturnRequest.php"
+      }
+    },
+    {
+      "name": "api.tenant.package-payments.packages",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/tenant/packages",
+      "url": "http://127.0.0.1:8000/api/tenant/packages",
+      "authentication": "Tenant bearer token; active admin role plus plans.view; first login completed",
+      "headers": [
+        {
+          "name": "Authorization",
+          "required": "required",
+          "type": "string",
+          "example": "Bearer <tenant-token>"
+        }
+      ],
+      "fields": [],
+      "restrictions": [
+        "Tenant is selected by authentication, never by a supplied ID. Amount/capacity/actual_user cannot set prices.",
+        "Checkout idempotency key can also be sent in Idempotency-Key. Reuse with another package or cycle is rejected.",
+        "Only initial purchases and same-package renewals; monthly/quarterly/yearly cycle price is the total. Test and live subscriptions remain separate.",
+        "Payment status GET reconciles without creating orders. History is 15 records per page.",
+        "Verification can return authorized/pending until provider capture; only captured activates a subscription."
+      ],
+      "middleware": [
+        "api",
+        "App\\Http\\Middleware\\AuthenticateTenantToken",
+        "throttle:20,1"
+      ],
+      "request_example": {},
+      "response_example": {
+        "data": [
+          {
+            "id": 1,
+            "name": "Standard",
+            "pricing_basis": "fixed_cycle_price",
+            "prices": [
+              {
+                "billing_cycle": "monthly",
+                "duration_months": 1,
+                "price": "999.19",
+                "currency": "INR"
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "route": "routes/api.php",
+        "controller": "App\\Http\\Controllers\\PackagePaymentController@packages"
+      }
+    },
+    {
+      "name": "api.tenant.package-payments.checkout",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/tenant/packages/{package}/checkout",
+      "url": "http://127.0.0.1:8000/api/tenant/packages/{package}/checkout",
+      "authentication": "Tenant bearer token; active admin role plus plans.view; first login completed",
+      "headers": [
+        {
+          "name": "Authorization",
+          "required": "required",
+          "type": "string",
+          "example": "Bearer <tenant-token>"
+        }
+      ],
+      "fields": [
+        {
+          "name": "billing_cycle",
+          "location": "body",
+          "required": "required",
+          "type": "string"
+        },
+        {
+          "name": "idempotency_key",
+          "location": "body",
+          "required": "required",
+          "type": "string"
+        }
+      ],
+      "restrictions": [
+        "Tenant is selected by authentication, never by a supplied ID. Amount/capacity/actual_user cannot set prices.",
+        "Checkout idempotency key can also be sent in Idempotency-Key. Reuse with another package or cycle is rejected.",
+        "Only initial purchases and same-package renewals; monthly/quarterly/yearly cycle price is the total. Test and live subscriptions remain separate.",
+        "Payment status GET reconciles without creating orders. History is 15 records per page.",
+        "Verification can return authorized/pending until provider capture; only captured activates a subscription."
+      ],
+      "middleware": [
+        "api",
+        "App\\Http\\Middleware\\AuthenticateTenantToken",
+        "throttle:20,1"
+      ],
+      "request_example": {
+        "billing_cycle": "monthly",
+        "idempotency_key": "purchase-unique-uuid"
+      },
+      "response_example": {
+        "data": {
+          "id": 1,
+          "reference": "uuid",
+          "status": "pending",
+          "amount": 99919,
+          "currency": "INR",
+          "mode": "test",
+          "checkout": {
+            "key": "rzp_test_PUBLIC",
+            "order_id": "order_example",
+            "amount": 99919,
+            "currency": "INR",
+            "name": "Standard"
+          }
+        }
+      },
+      "source": {
+        "route": "routes/api.php",
+        "controller": "App\\Http\\Controllers\\PackagePaymentController@checkout"
+      }
+    },
+    {
+      "name": "api.tenant.package-payments.verify",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/tenant/package-payments/{payment}/verify",
+      "url": "http://127.0.0.1:8000/api/tenant/package-payments/{payment}/verify",
+      "authentication": "Tenant bearer token; active admin role plus plans.view; first login completed",
+      "headers": [
+        {
+          "name": "Authorization",
+          "required": "required",
+          "type": "string",
+          "example": "Bearer <tenant-token>"
+        }
+      ],
+      "fields": [
+        {
+          "name": "razorpay_order_id",
+          "location": "body",
+          "required": "required",
+          "type": "string"
+        },
+        {
+          "name": "razorpay_payment_id",
+          "location": "body",
+          "required": "required",
+          "type": "string"
+        },
+        {
+          "name": "razorpay_signature",
+          "location": "body",
+          "required": "required",
+          "type": "string"
+        }
+      ],
+      "restrictions": [
+        "Tenant is selected by authentication, never by a supplied ID. Amount/capacity/actual_user cannot set prices.",
+        "Checkout idempotency key can also be sent in Idempotency-Key. Reuse with another package or cycle is rejected.",
+        "Only initial purchases and same-package renewals; monthly/quarterly/yearly cycle price is the total. Test and live subscriptions remain separate.",
+        "Payment status GET reconciles without creating orders. History is 15 records per page.",
+        "Verification can return authorized/pending until provider capture; only captured activates a subscription."
+      ],
+      "middleware": [
+        "api",
+        "App\\Http\\Middleware\\AuthenticateTenantToken",
+        "throttle:20,1"
+      ],
+      "request_example": {
+        "razorpay_order_id": "order_example",
+        "razorpay_payment_id": "pay_example",
+        "razorpay_signature": "64-character-hex-signature"
+      },
+      "response_example": {
+        "data": {
+          "id": 1,
+          "status": "captured",
+          "subscription_id": 1
+        }
+      },
+      "source": {
+        "route": "routes/api.php",
+        "controller": "App\\Http\\Controllers\\PackagePaymentController@verify"
+      }
+    },
+    {
+      "name": "api.tenant.package-payments.show",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/tenant/package-payments/{payment}",
+      "url": "http://127.0.0.1:8000/api/tenant/package-payments/{payment}",
+      "authentication": "Tenant bearer token; active admin role plus plans.view; first login completed",
+      "headers": [
+        {
+          "name": "Authorization",
+          "required": "required",
+          "type": "string",
+          "example": "Bearer <tenant-token>"
+        }
+      ],
+      "fields": [],
+      "restrictions": [
+        "Tenant is selected by authentication, never by a supplied ID. Amount/capacity/actual_user cannot set prices.",
+        "Checkout idempotency key can also be sent in Idempotency-Key. Reuse with another package or cycle is rejected.",
+        "Only initial purchases and same-package renewals; monthly/quarterly/yearly cycle price is the total. Test and live subscriptions remain separate.",
+        "Payment status GET reconciles without creating orders. History is 15 records per page.",
+        "Verification can return authorized/pending until provider capture; only captured activates a subscription."
+      ],
+      "middleware": [
+        "api",
+        "App\\Http\\Middleware\\AuthenticateTenantToken",
+        "throttle:20,1"
+      ],
+      "request_example": {},
+      "response_example": {
+        "data": {
+          "id": 1,
+          "status": "authorized",
+          "subscription_id": null
+        }
+      },
+      "source": {
+        "route": "routes/api.php",
+        "controller": "App\\Http\\Controllers\\PackagePaymentController@show"
+      }
+    },
+    {
+      "name": "api.tenant.package-payments.subscription",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/tenant/subscription",
+      "url": "http://127.0.0.1:8000/api/tenant/subscription",
+      "authentication": "Tenant bearer token; active admin role plus plans.view; first login completed",
+      "headers": [
+        {
+          "name": "Authorization",
+          "required": "required",
+          "type": "string",
+          "example": "Bearer <tenant-token>"
+        }
+      ],
+      "fields": [],
+      "restrictions": [
+        "Tenant is selected by authentication, never by a supplied ID. Amount/capacity/actual_user cannot set prices.",
+        "Checkout idempotency key can also be sent in Idempotency-Key. Reuse with another package or cycle is rejected.",
+        "Only initial purchases and same-package renewals; monthly/quarterly/yearly cycle price is the total. Test and live subscriptions remain separate.",
+        "Payment status GET reconciles without creating orders. History is 15 records per page.",
+        "Verification can return authorized/pending until provider capture; only captured activates a subscription."
+      ],
+      "middleware": [
+        "api",
+        "App\\Http\\Middleware\\AuthenticateTenantToken",
+        "throttle:20,1"
+      ],
+      "request_example": {},
+      "response_example": {
+        "data": {
+          "status": "Active",
+          "record": {
+            "id": 1,
+            "package_id": 1,
+            "billing_cycle": "monthly",
+            "mode": "test",
+            "starts_at": "2026-10-12T10:00:00Z",
+            "expires_at": "2026-11-12T10:00:00Z",
+            "grace_ends_at": "2026-11-19T10:00:00Z"
+          }
+        }
+      },
+      "source": {
+        "route": "routes/api.php",
+        "controller": "App\\Http\\Controllers\\PackagePaymentController@subscription"
+      }
+    },
+    {
+      "name": "api.tenant.package-payments.history",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/tenant/subscription/payments",
+      "url": "http://127.0.0.1:8000/api/tenant/subscription/payments",
+      "authentication": "Tenant bearer token; active admin role plus plans.view; first login completed",
+      "headers": [
+        {
+          "name": "Authorization",
+          "required": "required",
+          "type": "string",
+          "example": "Bearer <tenant-token>"
+        }
+      ],
+      "fields": [],
+      "restrictions": [
+        "Tenant is selected by authentication, never by a supplied ID. Amount/capacity/actual_user cannot set prices.",
+        "Checkout idempotency key can also be sent in Idempotency-Key. Reuse with another package or cycle is rejected.",
+        "Only initial purchases and same-package renewals; monthly/quarterly/yearly cycle price is the total. Test and live subscriptions remain separate.",
+        "Payment status GET reconciles without creating orders. History is 15 records per page.",
+        "Verification can return authorized/pending until provider capture; only captured activates a subscription."
+      ],
+      "middleware": [
+        "api",
+        "App\\Http\\Middleware\\AuthenticateTenantToken",
+        "throttle:20,1"
+      ],
+      "request_example": {},
+      "response_example": {
+        "current_page": 1,
+        "per_page": 15,
+        "total": 0,
+        "data": []
+      },
+      "source": {
+        "route": "routes/api.php",
+        "controller": "App\\Http\\Controllers\\PackagePaymentController@history"
+      }
+    },
+    {
+      "name": "api.platform-payments.webhook",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/webhooks/platform/razorpay/{version}",
+      "url": "http://127.0.0.1:8000/api/webhooks/platform/razorpay/{version}",
+      "authentication": "Raw-body Razorpay HMAC with version-specific platform webhook secret",
+      "headers": [
+        {
+          "name": "X-Razorpay-Signature",
+          "required": "required",
+          "type": "string"
+        },
+        {
+          "name": "X-Razorpay-Event-Id",
+          "required": "required",
+          "type": "string"
+        }
+      ],
+      "fields": [
+        {
+          "name": "event",
+          "location": "body",
+          "required": "required",
+          "type": "string"
+        },
+        {
+          "name": "payload",
+          "location": "body",
+          "required": "required",
+          "type": "object"
+        }
+      ],
+      "restrictions": [
+        "Use a version URL from super-admin Payment Configuration. Only durably processed events return 200; temporary failures return 503 for retry.",
+        "Subscribe to payment.captured, order.paid and payment.failed. No CSRF middleware on this API route."
+      ],
+      "middleware": [
+        "api"
+      ],
+      "request_example": {
+        "event": "payment.captured",
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_example",
+              "order_id": "order_example",
+              "amount": 99919,
+              "currency": "INR"
+            }
+          }
+        }
+      },
+      "response_example": {
+        "message": "Accepted"
+      },
+      "source": {
+        "route": "routes/api.php",
+        "controller": "App\\Http\\Controllers\\PlatformWebhookController"
       }
     }
   ]
