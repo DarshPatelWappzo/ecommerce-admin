@@ -49,15 +49,15 @@ Selling prices are the configured `package_prices.price` total for each cycle, c
 
 The quote, package name, duration and pricing basis are snapshotted before order creation. Early renewal extends the current exclusive expiry; renewal after expiry (including grace) starts from the time capture is confirmed locally. Months use no-overflow calendar arithmetic; grace ends seven days after expiry. API fields map legacy `start_date/end_date/grace_expires_at` to `starts_at/expires_at/grace_ends_at`. History preserves every purchased term. Test subscriptions are isolated from live summaries and clearly labelled.
 
-No upgrades, downgrades, proration or automatic recurring billing are implemented. Existing subscriptions without a known expiry require support before renewal.
+Any eligible active package can be purchased. A different package starts at the current active expiry, or immediately on confirmed capture when expired or in grace. No immediate switching, proration, automatic refunds or recurring billing are implemented. Existing subscriptions without a known expiry require support before renewal.
 
 A browser signature is insufficient: payment/order association, exact amount, currency, environment, receipt, purpose and captured state are checked against Razorpay. Authorization stays pending. Dismissal and failure do not cancel the order or prevent later capture.
 
-An unresolved attempt blocks a second purchase for that central owner in the same environment. Reuse the same idempotency key or use **Check / resume** in history. A definitively rejected creation allows a new key. A timeout keeps the reservation; reconciliation looks up the original receipt and never blindly submits another order. If no order can be found after an ambiguous creation, manual investigation is required; there is intentionally no unsafe automatic reset.
+Unpaid, dismissed and failed attempts do not block new purchases. Identical requests may reuse their original idempotency key; another selection requires a new key. Local checkout expires after 30 minutes (subscriptions.checkout_minutes), while verification and reconciliation remain available for late captures. Dismissal records local state only. An ambiguous attempt is recovered by receipt without resubmitting its order. Only an existing paid future term blocks another future purchase. Capture finalization rechecks state under the central owner lock. Conflicting captures and older attempts captured after a newer paid attempt remain captured with fulfillment_status=resolution_required and appear in tenant history and the super-admin payment configuration screen. No automatic refunds are issued.
 
 ## API examples
 
-All six tenant endpoints require the existing tenant bearer token and billing authorization. Payment lookups additionally require the authenticated tenant database ID to match the attempt. Customers cannot access these endpoints.
+All seven tenant endpoints require the existing tenant bearer token and billing authorization. Payment lookups additionally require the authenticated tenant database ID to match the attempt. Customers cannot access these endpoints.
 
 ```http
 POST /api/tenant/packages/1/checkout
@@ -106,7 +106,7 @@ node --test tests/Unit/package-checkout.test.js tests/Unit/plans-catalog.test.js
 
 For the MySQL migration test, set the process environment variable `PLATFORM_MYSQL_TEST=1` and run `php artisan test --compact tests/Feature/PlatformPaymentMigrationTest.php`; the test account needs CREATE/DROP DATABASE privileges.
 
-Real Razorpay checkout, dashboard delivery, visual browser acceptance and simultaneous multi-process contention have not been verified. No real payment API was called during implementation. No application server was started, no existing database was migrated, and changes remain uncommitted.
+Real Razorpay checkout, dashboard delivery and visual browser acceptance have not been verified. Simultaneous capture finalization and duplicate processing were tested with separate PHP processes against a newly created disposable MySQL database. No real payment API was called during implementation. No application server was started, no existing database was migrated, and changes remain uncommitted.
 
 
 ## Implementation files and verification record
@@ -128,3 +128,13 @@ Verification on 2026-10-12:
 - Checkout and catalog JavaScript: **6 passed**.
 - Pint ran with `--dirty --format agent` restricted to this task's PHP paths; final run passed. `git diff --check` passed.
 - Full application suite was not run. Run `php artisan test --compact` when ready for the broader suite.
+
+## Checkout-state migration and response fields
+
+The additional migration is `2026_10_13_050714_add_local_checkout_state_to_package_payments.php`. Apply it to the central database with the normal migration command; no tenant migration is needed. It adds `checkout_state` and `checkout_expires_at`. Existing attempts without an expiry use creation time plus 30 minutes.
+
+`POST /api/tenant/package-payments/{payment}/dismiss` accepts an empty body and records local dismissal without cancelling the gateway order.
+
+Payment responses expose `local_checkout_status`, `fulfillment_status`, `message` and `effective_starts_at`. The subscription endpoint returns both `record` (current) and `scheduled` (paid future), each with start/expiry/grace dates. Catalog entries expose `purchase_available` and `expected_starts_at`; final dates are recalculated under lock at capture confirmation. Capacity minimum/maximum and configured limits are snapshotted; capacity remains display-only under existing pricing rules.
+
+The existing reconciliation scheduler also advances due scheduled rows. Access resolution uses timestamps, so a late scheduler cannot leave the old package active beyond its expiry.

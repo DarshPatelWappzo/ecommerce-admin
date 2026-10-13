@@ -56,14 +56,51 @@
             </form>
         </section>
         <section class="dashboard-card mt-4">
-            <h2 class="h5">Webhook endpoints</h2>
+            <h2 class="h5">Payments requiring resolution</h2>
+            <p>These captured payments have not granted a subscription because a newer payment or scheduled term conflicts. Review them manually; no refund is issued automatically.</p>
+        <div class="table-responsive">
+            <table class="table listing-table align-middle">
+                <thead>
+                    <tr>
+                        <th>Tenant</th>
+                        <th>Reference</th>
+                        <th>Package</th>
+                        <th>Amount</th>
+                        <th>Mode</th>
+                        <th>Provider payment</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($resolutionPayments as $payment)
+                        <tr>
+                            <td>{{ $payment->tenant_database_id }}</td>
+                            <td>{{ $payment->reference }}</td>
+                            <td>{{ $payment->quote['name'] }}</td>
+                            <td>{{ $payment->currency }} {{ number_format($payment->amount / 100, 2) }}</td>
+                            <td>{{ $payment->mode }}</td>
+                            <td>{{ $payment->gateway_payment_id }}</td>
+                        </tr>
+                    @empty 
+                        <tr>
+                            <td colspan="6">No payments require resolution.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        {{ $resolutionPayments->links() }}
+        <h2 class="h5 mt-4">Webhook endpoints</h2>
             <p>The webhook secret is optional for checkout. Until configured, payments are confirmed through checkout
                 verification or reconciliation; webhook requests are not accepted.</p>
             <p>Configure payment.captured, order.paid and payment.failed in the matching Razorpay environment. Keep old
                 endpoints and their original secrets for delayed events after credential rotation.</p>
             @forelse ($versions as $version)
-                <p class="mb-2"><strong>{{ ucfirst($version->mode) }} version
-                        {{ $version->id }}</strong><br><code>{{ route('api.platform-payments.webhook', $version->id) }}</code>
+                <p class="mb-2">
+                    <strong>{{ ucfirst($version->mode) }}
+                        version {{ $version->id }}
+                    </strong>
+                    <br>
+                    <code>{{ route('api.platform-payments.webhook', $version->id) }}</code>
                 </p>
             @empty
                 <p>Save credentials to generate a webhook endpoint.</p>

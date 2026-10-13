@@ -3,7 +3,7 @@
   "generated_on": "2026-10-07",
   "base_url": "http://127.0.0.1:8000",
   "scope": "All registered /api routes; PUT/PATCH aliases share an entry. Web/admin HTML routes are outside this reference.",
-  "endpoint_count": 111,
+  "endpoint_count": 112,
   "conventions": {
     "required": "required, optional, conditional or prohibited; nested requirements apply to each supplied parent object/array entry.",
     "fields": "Request fields only: path/query/body, with headers listed separately. Asterisk means each array element; items.*.quantity means items[0].quantity, etc.",
@@ -22525,7 +22525,7 @@
       "restrictions": [
         "Tenant is selected by authentication, never by a supplied ID. Amount/capacity/actual_user cannot set prices.",
         "Checkout idempotency key can also be sent in Idempotency-Key. Reuse with another package or cycle is rejected.",
-        "Only initial purchases and same-package renewals; monthly/quarterly/yearly cycle price is the total. Test and live subscriptions remain separate.",
+        "Any eligible package can be purchased; active terms schedule the next package at expiry. Paid future terms block conflicting purchases; unpaid attempts do not. Test and live subscriptions remain separate.",
         "Payment status GET reconciles without creating orders. History is 15 records per page.",
         "Verification can return authorized/pending until provider capture; only captured activates a subscription."
       ],
@@ -22590,7 +22590,7 @@
       "restrictions": [
         "Tenant is selected by authentication, never by a supplied ID. Amount/capacity/actual_user cannot set prices.",
         "Checkout idempotency key can also be sent in Idempotency-Key. Reuse with another package or cycle is rejected.",
-        "Only initial purchases and same-package renewals; monthly/quarterly/yearly cycle price is the total. Test and live subscriptions remain separate.",
+        "Any eligible package can be purchased; active terms schedule the next package at expiry. Paid future terms block conflicting purchases; unpaid attempts do not. Test and live subscriptions remain separate.",
         "Payment status GET reconciles without creating orders. History is 15 records per page.",
         "Verification can return authorized/pending until provider capture; only captured activates a subscription."
       ],
@@ -22664,7 +22664,7 @@
       "restrictions": [
         "Tenant is selected by authentication, never by a supplied ID. Amount/capacity/actual_user cannot set prices.",
         "Checkout idempotency key can also be sent in Idempotency-Key. Reuse with another package or cycle is rejected.",
-        "Only initial purchases and same-package renewals; monthly/quarterly/yearly cycle price is the total. Test and live subscriptions remain separate.",
+        "Any eligible package can be purchased; active terms schedule the next package at expiry. Paid future terms block conflicting purchases; unpaid attempts do not. Test and live subscriptions remain separate.",
         "Payment status GET reconciles without creating orders. History is 15 records per page.",
         "Verification can return authorized/pending until provider capture; only captured activates a subscription."
       ],
@@ -22710,7 +22710,7 @@
       "restrictions": [
         "Tenant is selected by authentication, never by a supplied ID. Amount/capacity/actual_user cannot set prices.",
         "Checkout idempotency key can also be sent in Idempotency-Key. Reuse with another package or cycle is rejected.",
-        "Only initial purchases and same-package renewals; monthly/quarterly/yearly cycle price is the total. Test and live subscriptions remain separate.",
+        "Any eligible package can be purchased; active terms schedule the next package at expiry. Paid future terms block conflicting purchases; unpaid attempts do not. Test and live subscriptions remain separate.",
         "Payment status GET reconciles without creating orders. History is 15 records per page.",
         "Verification can return authorized/pending until provider capture; only captured activates a subscription."
       ],
@@ -22752,7 +22752,7 @@
       "restrictions": [
         "Tenant is selected by authentication, never by a supplied ID. Amount/capacity/actual_user cannot set prices.",
         "Checkout idempotency key can also be sent in Idempotency-Key. Reuse with another package or cycle is rejected.",
-        "Only initial purchases and same-package renewals; monthly/quarterly/yearly cycle price is the total. Test and live subscriptions remain separate.",
+        "Any eligible package can be purchased; active terms schedule the next package at expiry. Paid future terms block conflicting purchases; unpaid attempts do not. Test and live subscriptions remain separate.",
         "Payment status GET reconciles without creating orders. History is 15 records per page.",
         "Verification can return authorized/pending until provider capture; only captured activates a subscription."
       ],
@@ -22801,7 +22801,7 @@
       "restrictions": [
         "Tenant is selected by authentication, never by a supplied ID. Amount/capacity/actual_user cannot set prices.",
         "Checkout idempotency key can also be sent in Idempotency-Key. Reuse with another package or cycle is rejected.",
-        "Only initial purchases and same-package renewals; monthly/quarterly/yearly cycle price is the total. Test and live subscriptions remain separate.",
+        "Any eligible package can be purchased; active terms schedule the next package at expiry. Paid future terms block conflicting purchases; unpaid attempts do not. Test and live subscriptions remain separate.",
         "Payment status GET reconciles without creating orders. History is 15 records per page.",
         "Verification can return authorized/pending until provider capture; only captured activates a subscription."
       ],
@@ -22882,6 +22882,34 @@
       "source": {
         "route": "routes/api.php",
         "controller": "App\\Http\\Controllers\\PlatformWebhookController"
+      }
+    },
+    {
+      "name": "api.tenant.package-payments.dismiss",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/tenant/package-payments/{payment}/dismiss",
+      "authentication": "Tenant bearer token; active admin role plus plans.view; first login completed",
+      "fields": [],
+      "restrictions": [
+        "Payment ownership is checked against the authenticated tenant.",
+        "Records local dismissal only; gateway status and later capture verification are preserved.",
+        "Local checkout expires after 30 minutes. Unpaid attempts do not block another purchase."
+      ],
+      "request_example": {},
+      "response_example": {
+        "data": {
+          "id": 1,
+          "status": "pending",
+          "local_checkout_status": "dismissed",
+          "fulfillment_status": "unpaid",
+          "message": "Checkout dismissed; you can retry or choose another package"
+        }
+      },
+      "source": {
+        "route": "routes/api.php",
+        "controller": "App\\Http\\Controllers\\PackagePaymentController@dismiss"
       }
     }
   ]

@@ -9,10 +9,13 @@ use Illuminate\Validation\ValidationException;
 
 class PackagePricingService
 {
-    /** @return array{package_id: int, name: string, billing_cycle: string, duration_months: int, amount: int, currency: string, pricing_basis: string, capacity: null} */
+    /** @return array{package_id: int, name: string, billing_cycle: string, duration_months: int, amount: int, currency: string, pricing_basis: string, capacity: array{min_monthly_users: int, max_monthly_users: ?int}, limits: array<string, int|null>} */
     public function quote(int $packageId, string $cycle): array
     {
         $package = Package::on(config('subscriptions.connection'))->where('status', 'active')->where('is_tenant_visible', true)->findOrFail($packageId);
+        if ($package->min_monthly_users < 0 || ($package->max_monthly_users !== null && $package->max_monthly_users < $package->min_monthly_users)) {
+            throw ValidationException::withMessages(['package' => 'The configured capacity range is invalid.']);
+        }
         $price = $package->prices()->where('billing_cycle', $cycle)->where('currency', 'INR')->where('is_active', true)->first();
         if (! $price || ! isset(self::CYCLES[$cycle]) || $price->duration_months !== self::CYCLES[$cycle]) {
             throw ValidationException::withMessages(['billing_cycle' => 'This billing cycle is unavailable.']);
@@ -22,7 +25,7 @@ class PackagePricingService
             throw ValidationException::withMessages(['package' => 'The configured price is outside the supported payment range.']);
         }
 
-        return ['package_id' => $package->id, 'name' => $package->name, 'billing_cycle' => $cycle, 'duration_months' => $price->duration_months, 'amount' => $amount, 'currency' => 'INR', 'pricing_basis' => 'fixed_cycle_price', 'capacity' => null];
+        return ['package_id' => $package->id, 'name' => $package->name, 'billing_cycle' => $cycle, 'duration_months' => $price->duration_months, 'amount' => $amount, 'currency' => 'INR', 'pricing_basis' => 'fixed_cycle_price', 'capacity' => ['min_monthly_users' => (int) $package->min_monthly_users, 'max_monthly_users' => $package->max_monthly_users === null ? null : (int) $package->max_monthly_users], 'limits' => $package->limits()->pluck('limit_value', 'limit_key')->all()];
     }
 
     public const CYCLES = ['monthly' => 1, 'quarterly' => 3, 'yearly' => 12];

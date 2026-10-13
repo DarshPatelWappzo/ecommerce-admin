@@ -18,13 +18,17 @@ class PackagePaymentController extends Controller
     /** Return public catalog fields and selling prices. */
     public function packages(PackagePaymentRequest $request): JsonResponse
     {
+        $summary = $this->subscriptions->summary($request->tenant(), $this->settings->status()['mode']);
+        $start = $summary['status'] === 'Active' ? $summary['record']->end_date : now();
         $data = ['data' => $this->packages->catalog()
             ->map(fn($package): array => [
                 'id' => $package->id,
                 'name' => $package->name,
                 'description' => $package->description,
                 'prices' => $package->prices,
-                'pricing_basis' => 'fixed_cycle_price'
+                'pricing_basis' => 'fixed_cycle_price',
+                'purchase_available' => ! $summary['scheduled'] && $start !== null,
+                'expected_starts_at' => $start?->toIso8601String(),
             ])];
 
         return response()->json($data);
@@ -57,23 +61,34 @@ class PackagePaymentController extends Controller
         return response()->json($data);
     }
 
+    /** Record dismissal for an owned checkout without cancelling its provider order. */
+    public function dismiss(PackagePaymentRequest $request, int $payment): JsonResponse
+    {
+        $record = $this->checkout->dismiss($this->payments->owned($request->tenant(), $payment));
+        $data = ['data' => $this->checkout->response($record)];
+
+        return response()->json($data);
+    }
+
     /** Return the tenant subscription summary. */
     public function subscription(PackagePaymentRequest $request): JsonResponse
     {
         $summary = $this->subscriptions->summary($request->tenant(), $this->settings->status()['mode']);
-        $record = $summary['record'];
-        $summary['record'] = $record ? [
-            'id' => $record->id,
-            'package_id' => $record->package_id,
-            'name' => $record->price_snapshot['name'] ?? $record->package?->name,
-            'billing_cycle' => $record->billing_cycle,
-            'starts_at' => $record->start_date,
-            'expires_at' => $record->end_date,
-            'grace_ends_at' => $record->grace_expires_at,
-            'valid_until' => $record->end_date?->copy()->subSecond()->toIso8601String(),
-            'mode' => $record->mode ?? 'live',
-            'price_snapshot' => $record->price_snapshot,
-        ] : null;
+        foreach (['record', 'scheduled'] as $key) {
+            $record = $summary[$key];
+            $summary[$key] = $record ? [
+                'id' => $record->id,
+                'package_id' => $record->package_id,
+                'name' => $record->price_snapshot['name'] ?? $record->package?->name,
+                'billing_cycle' => $record->billing_cycle,
+                'starts_at' => $record->start_date,
+                'expires_at' => $record->end_date,
+                'grace_ends_at' => $record->grace_expires_at,
+                'valid_until' => $record->end_date?->copy()->subSecond()->toIso8601String(),
+                'mode' => $record->mode ?? 'live',
+                'price_snapshot' => $record->price_snapshot,
+            ] : null;
+        }
         $data = ['data' => $summary];
 
         return response()->json($data);

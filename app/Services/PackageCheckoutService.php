@@ -40,11 +40,6 @@ class PackageCheckoutService
                 return $existing;
             }
             $version = $this->settings->active();
-            if (PackagePayment::query()->where('owner_id', $tenant->user_id)->where('mode', $version->mode)
-                ->whereNotIn('status', ['captured', 'rejected'])->exists()
-            ) {
-                throw ValidationException::withMessages(['payment' => 'Resume the existing pending payment from payment history before starting another purchase.']);
-            }
             $this->subscriptions->assertPurchasable($tenant, $packageId, $version->mode);
             $quote = $this->pricing->quote($packageId, $cycle);
             $created = true;
@@ -63,6 +58,7 @@ class PackageCheckoutService
                 'reference' => (string) Str::uuid(),
                 'idempotency_key' => $key,
                 'payload_hash' => $hash,
+                'checkout_expires_at' => now()->addMinutes(config('subscriptions.checkout_minutes', 30)),
             ]);
         }, 3);
         if (! $created) {
@@ -166,7 +162,7 @@ class PackageCheckoutService
                 if (($providerPayment['status'] ?? null) === 'captured' && ($providerPayment['captured'] ?? false) === true) {
                     $locked->update(['status' => 'captured', 'gateway_payment_id' => $providerPayment['id'], 'paid_at' => now(), 'failure_code' => null]);
                     $subscription = $this->subscriptions->activatePayment($tenant, $locked);
-                    $locked->update(['subscription_id' => $subscription->id]);
+                    $locked->update(['subscription_id' => $subscription?->id]);
 
                     return $locked;
                 }
@@ -218,12 +214,34 @@ class PackageCheckoutService
         }, 3);
     }
 
+    /** Browser dismissal changes only local checkout state, never provider payment status. */
+    public function dismiss(PackagePayment $payment): PackagePayment
+    {
+        PackagePayment::query()->whereKey($payment->id)->where('status', '!=', 'captured')->update(['checkout_state' => 'dismissed']);
+
+        return $payment->refresh();
+    }
+
     /** @return array<string, mixed> */
     public function response(PackagePayment $payment): array
     {
         $data = $payment->toArray();
         $data['checkout'] = null;
-        if ($payment->gateway_order_id && ! in_array($payment->status, ['captured', 'rejected'], true)) {
+        if ($payment->gateway_order_id && $payment->reusable()) {
+            if (PackagePayment::query()->where('tenant_database_id', $payment->tenant_database_id)
+                ->where('mode', $payment->mode)->where('id', '>', $payment->id)->where('status', 'captured')->exists()) {
+                $data['message'] = 'A newer package payment has completed. Start a new purchase instead; any capture for this attempt will still be verified.';
+
+                return $data;
+            }
+            $tenant = TenantDatabase::on(config('subscriptions.connection'))->findOrFail($payment->tenant_database_id);
+            try {
+                $this->subscriptions->assertPurchasable($tenant, $payment->package_id, $payment->mode);
+            } catch (ValidationException $exception) {
+                $data['message'] = $exception->getMessage();
+
+                return $data;
+            }
             $version = PlatformGatewayVersion::findOrFail($payment->configuration_version_id);
             $data['checkout'] = ['key' => $version->credentials['key_id'], 'order_id' => $payment->gateway_order_id, 'amount' => $payment->amount, 'currency' => $payment->currency, 'name' => $payment->quote['name']];
         }

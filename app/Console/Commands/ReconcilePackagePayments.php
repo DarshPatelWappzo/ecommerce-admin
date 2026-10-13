@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Exceptions\PlatformPaymentException;
 use App\Models\PackagePayment;
 use App\Services\PackageCheckoutService;
+use App\Services\TenantSubscriptionService;
 use Illuminate\Console\Command;
 
 class ReconcilePackagePayments extends Command
@@ -13,8 +14,9 @@ class ReconcilePackagePayments extends Command
 
     protected $description = 'Confirm pending platform package payments without creating orders';
 
-    public function handle(PackageCheckoutService $checkout): int
+    public function handle(PackageCheckoutService $checkout, TenantSubscriptionService $subscriptions): int
     {
+        $subscriptions->activateDue();
         $failed = 0;
         $records = PackagePayment::query()->whereNotIn('status', ['captured', 'rejected'])
             ->when($this->option('payment'), fn($query) => $query->whereKey($this->option('payment')))

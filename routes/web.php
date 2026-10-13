@@ -54,6 +54,7 @@ Route::prefix('tenant')->name('tenant.')->group(function (): void {
             Route::controller(PackagePaymentController::class)->middleware('throttle:20,1')->group(function (): void {
                 Route::post('packages/{package}/checkout', 'checkout')->whereNumber('package')->name('package-payments.checkout');
                 Route::post('package-payments/{payment}/verify', 'verify')->whereNumber('payment')->name('package-payments.verify');
+                Route::post('package-payments/{payment}/dismiss', 'dismiss')->whereNumber('payment')->name('package-payments.dismiss');
                 Route::get('package-payments/{payment}', 'show')->whereNumber('payment')->name('package-payments.show');
             });
             Route::get('settings/plans', [TenantPlansController::class, 'index'])->name('plans.index');

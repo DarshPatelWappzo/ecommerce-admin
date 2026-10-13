@@ -22,7 +22,13 @@ class PlatformPaymentRepository
 
     public function history(TenantDatabase $tenant): LengthAwarePaginator
     {
-        return PackagePayment::query()->where('tenant_database_id', $tenant->id)->latest('id')->paginate(15)->withQueryString();
+        return PackagePayment::query()->with('subscription')->where('tenant_database_id', $tenant->id)->latest('id')->paginate(15)->withQueryString();
+    }
+
+    public function requiringResolution(): LengthAwarePaginator
+    {
+        return PackagePayment::query()->where('status', 'captured')->where('failure_code', 'resolution_required')
+            ->latest('id')->paginate(15)->withQueryString();
     }
 
     public function lockOwner(TenantDatabase $tenant): void

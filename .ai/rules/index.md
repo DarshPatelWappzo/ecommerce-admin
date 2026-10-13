@@ -4,7 +4,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 
 | Applies to | Rule file |
 | --- | --- |
-| app/Services/PlatformGatewayConfigurationService.php, app/Services/PlatformRazorpayGateway.php | .ai/rules/app-services-services.md |
+| app/Services/PlatformGatewayConfigurationService.php, app/Services/PlatformRazorpayGateway.php, app/Services/PackageCheckoutService.php, app/Services/*Subscription*.php | .ai/rules/app-services-services.md |
 | bootstrap/app.php | .ai/rules/bootstrap.md |
 | app/Http/Controllers/** | .ai/rules/controllers.md |
 | app/Services/*Payment*.php, app/Services/Razorpay*.php, app/Services/TenantRefundService.php, app/Http/Controllers/OrderPaymentWebhookController.php | .ai/rules/http-controllers.md |

@@ -51,6 +51,7 @@ Route::middleware(AuthenticateTenantToken::class)->group(function (): void {
         Route::get('tenant/packages', 'packages')->name('api.tenant.package-payments.packages');
         Route::post('tenant/packages/{package}/checkout', 'checkout')->whereNumber('package')->name('api.tenant.package-payments.checkout');
         Route::post('tenant/package-payments/{payment}/verify', 'verify')->whereNumber('payment')->name('api.tenant.package-payments.verify');
+        Route::post('tenant/package-payments/{payment}/dismiss', 'dismiss')->whereNumber('payment')->name('api.tenant.package-payments.dismiss');
         Route::get('tenant/package-payments/{payment}', 'show')->whereNumber('payment')->name('api.tenant.package-payments.show');
         Route::get('tenant/subscription', 'subscription')->name('api.tenant.package-payments.subscription');
         Route::get('tenant/subscription/payments', 'history')->name('api.tenant.package-payments.history');

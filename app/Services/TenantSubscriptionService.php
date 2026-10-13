@@ -14,24 +14,40 @@ class TenantSubscriptionService
 
     public function assertPurchasable(TenantDatabase $tenant, int $packageId, string $mode): void
     {
-        $current = $this->subscriptions->currentForPurchase($tenant, $mode);
-        if ($current && (int) $current->package_id !== $packageId) {
-            throw ValidationException::withMessages(['package' => 'Package changes are unavailable. Renew your current package.']);
+        if ($this->subscriptions->scheduled($tenant, $mode)) {
+            throw ValidationException::withMessages(['package' => 'A paid package is already scheduled. Another future purchase is unavailable until it starts.']);
         }
-        if ($current && $current->end_date === null) {
-            throw ValidationException::withMessages(['package' => 'This subscription has no recorded expiry. Contact support before renewing.']);
+        $current = $this->subscriptions->currentForPurchase($tenant, $mode);
+        if ($current && $this->status($current) === 'Active' && $current->end_date === null) {
+            throw ValidationException::withMessages(['package' => 'This subscription has no recorded expiry. Contact support before purchasing.']);
         }
     }
 
-    /** Called only under the central owner and payment locks after authoritative capture. */
-    public function activatePayment(TenantDatabase $tenant, PackagePayment $payment): UserPackage
+    /** Called under the central owner and payment locks. Conflicts retain the captured payment for resolution. */
+    public function activatePayment(TenantDatabase $tenant, PackagePayment $payment): ?UserPackage
     {
-        $existing = UserPackage::query()->where('package_payment_id', $payment->id)->first();
+        $existing = UserPackage::query()
+            ->where('package_payment_id', $payment->id)
+            ->first();
         if ($existing) {
             return $existing;
         }
+        $newerPaid = PackagePayment::query()
+            ->where('tenant_database_id', $tenant->id)
+            ->where('mode', $payment->mode)
+            ->where('id', '>', $payment->id)
+            ->where('status', 'captured')
+            ->exists();
         $current = $this->subscriptions->currentForPurchase($tenant, $payment->mode);
-        $start = $current && (int) $current->package_id === (int) $payment->package_id && $current->end_date?->gt($payment->paid_at)
+        if (
+            $newerPaid || $this->subscriptions->scheduled($tenant, $payment->mode)
+            || ($current && $this->status($current) === 'Active' && $current->end_date === null)
+        ) {
+            $payment->update(['failure_code' => 'resolution_required']);
+
+            return null;
+        }
+        $start = $current && $this->status($current) === 'Active' && $current->end_date?->gt($payment->paid_at)
             ? $current->end_date->copy() : $payment->paid_at->copy();
         $end = $start->copy()->addMonthsNoOverflow($payment->quote['duration_months']);
 
@@ -46,18 +62,18 @@ class TenantSubscriptionService
             'start_date' => $start,
             'end_date' => $end,
             'grace_expires_at' => $end->copy()->addDays(7),
-            'status' => 'active',
+            'status' => $start->isFuture() ? 'scheduled' : 'active',
         ]);
     }
 
-    /** @return array{record: UserPackage|null, status: string, remaining_days: int|null} */
+    /** @return array{record: UserPackage|null, scheduled: UserPackage|null, status: string, remaining_days: int|null} */
     public function summary(TenantDatabase $tenant, string $mode = 'live'): array
     {
-        $records = $this->subscriptions->forTenant($tenant)->filter(fn(UserPackage $record): bool => $record->mode === null || $record->mode === $mode);
-        $record = $records->first(fn(UserPackage $record): bool => in_array($this->status($record), ['Active', 'Grace Period'], true)) ?? $records->first();
+        $record = $this->subscriptions->currentForPurchase($tenant, $mode);
 
         return [
             'record' => $record,
+            'scheduled' => $this->subscriptions->scheduled($tenant, $mode),
             'status' => $record ? $this->status($record) : 'No Subscription',
             'remaining_days' => $record?->end_date ? max(0, (int) ceil(now()->diffInDays($record->end_date, false))) : null,
         ];
@@ -68,15 +84,28 @@ class TenantSubscriptionService
         if (in_array($record->status, ['cancelled', 'canceled'], true)) {
             return 'Cancelled';
         }
-        if (in_array($record->status, ['active', 'grace_period'], true)) {
-            if (($record->end_date !== null && $record->end_date->lte(now())) && $record->grace_expires_at?->isFuture()) {
+        if ($record->start_date->isFuture()) {
+            return 'Scheduled';
+        }
+        if (in_array($record->status, ['active', 'scheduled', 'grace_period'], true)) {
+            if ($record->end_date !== null && $record->end_date->lte(now()) && $record->grace_expires_at?->isFuture()) {
                 return 'Grace Period';
             }
-            if ($record->status === 'active' && ($record->end_date === null || $record->end_date->isFuture())) {
+            if ($record->end_date === null || $record->end_date->isFuture()) {
                 return 'Active';
             }
         }
 
         return 'Expired';
+    }
+
+    /** Cosmetic lifecycle updates; access resolution always uses timestamps even before this job runs. */
+    public function activateDue(): int
+    {
+        return UserPackage::query()
+            ->where('status', 'scheduled')
+            ->whereNotNull('package_payment_id')
+            ->where('start_date', '<=', now())
+            ->update(['status' => 'active']);
     }
 }

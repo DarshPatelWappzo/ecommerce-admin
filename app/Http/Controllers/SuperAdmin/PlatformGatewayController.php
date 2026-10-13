@@ -5,6 +5,7 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PlatformGatewayRequest;
 use App\Models\PlatformGatewayVersion;
+use App\Repositories\PlatformPaymentRepository;
 use App\Services\PlatformGatewayConfigurationService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -15,10 +16,11 @@ class PlatformGatewayController extends Controller
     public function __construct(private readonly PlatformGatewayConfigurationService $settings) {}
 
     /** Show configuration presence without returning credentials. */
-    public function index(PlatformGatewayRequest $request): View
+    public function index(PlatformGatewayRequest $request, PlatformPaymentRepository $payments): View
     {
         $data = [];
         $data['settings'] = $this->settings->status();
+        $data['resolutionPayments'] = $payments->requiringResolution();
         $data['versions'] = PlatformGatewayVersion::query()->select(['id', 'mode', 'created_at'])->latest('id')->get();
 
         return view('super-admin.platform-payments.index', $data);

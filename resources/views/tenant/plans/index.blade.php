@@ -1,7 +1,7 @@
 @extends('layouts.app', ['sidebarView' => 'tenant.partials.sidebar', 'headerView' => 'tenant.partials.header'])
 @section('title', 'Plans & Subscription')
 @section('content')
-<div class="container-fluid" data-plans-catalog data-checkout-scope="{{ $checkoutScope }}">
+<div class="container-fluid" data-plans-catalog data-checkout-scope="{{ $checkoutScope }}" data-checkout-mode="{{ $gateway['mode'] }}">
     <div class="listing-page-header mb-4"><div><p class="text-primary fw-semibold mb-1">Settings</p><h1 class="page-title">Plans &amp; Subscription</h1></div></div>
     <section class="dashboard-card mb-4" aria-labelledby="current-subscription-heading">
         <h2 class="h5" id="current-subscription-heading">Current Subscription</h2>
@@ -22,13 +22,19 @@
         @else
             <p class="fw-semibold">No active subscription</p>
         @endif
-        <p class="text-muted mt-3 mb-0">One-time payments. Renewals include seven days of grace after expiry. Package changes and automatic recurring billing are unavailable.</p>
+        <p class="text-muted mt-3 mb-0">One-time payments. Renewals include seven days of grace after expiry. Package changes start after the current active term. Automatic recurring billing is unavailable.</p>
         @if (! $gateway['is_enabled'])
             <p class="alert alert-warning mt-3 mb-0">Platform payment configuration is unavailable. Please contact support.</p>
         @else
             <p class="small mt-3 mb-0">Checkout environment: {{ ucfirst($gateway['mode']) }}. Pricing basis: configured total for the selected billing cycle.</p>
         @endif
     </section>
+    @if ($subscription['scheduled'])
+        <section class="dashboard-card mb-4"><h2 class="h5">Paid scheduled package</h2>
+            <p>{{ $subscription['scheduled']->price_snapshot['name'] ?? $subscription['scheduled']->package?->name }} — {{ ucfirst($subscription['scheduled']->billing_cycle) }}</p>
+            <p>Starts {{ $subscription['scheduled']->start_date->format('d M Y H:i T') }}. Another future purchase is unavailable until it starts.</p>
+        </section>
+    @endif
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
         <h2 class="h4 mb-0">Available plans</h2>
         <div class="btn-group" role="group" aria-label="Billing cycle">
@@ -48,17 +54,20 @@
                     </div>
                     <h3 class="h5">{{ $package->name }}</h3>
                     <p class="text-muted">{{ $package->description ?? 'No description available.' }}</p>
+                    @if ($subscription['status'] === 'Active' && $subscription['record']?->package_id !== $package->id && $subscription['record']?->end_date)
+                        <p>Your new package will start on {{ $subscription['record']->end_date->format('d M Y H:i T') }} when your current package expires.</p>
+                    @endif
                     @include('tenant.plans._prices')
                     @include('tenant.plans._limits')
                     @foreach (\App\Services\PackagePricingService::CYCLES as $purchaseCycle => $months)
                         @php($purchasePrice = $package->prices->firstWhere('billing_cycle', $purchaseCycle))
                         <div data-plan-cycle="{{ $purchaseCycle }}" @if ($purchaseCycle !== 'monthly') hidden @endif>
-                            @if ($canPurchase && $gateway['is_enabled'] && $purchasePrice && $purchasePrice->price >= 1 && (! $subscription['record'] || $subscription['record']->package_id === $package->id))
+                            @if ($canPurchase && $gateway['is_enabled'] && $purchasePrice && $purchasePrice->price >= 1 && ! $subscription['scheduled'] && ! ($subscription['status'] === 'Active' && $subscription['record']?->end_date === null))
                                 <button type="button" class="btn btn-primary mt-3" 
                                     data-package-checkout="{{ route('tenant.package-payments.checkout', $package->id) }}" 
                                     data-cycle="{{ $purchaseCycle }}" 
-                                    data-package="{{ $package->id }}">
-                                    {{ $subscription['record'] ? 'Renew Now' : 'Buy Now' }}
+                                    data-package="{{ $package->id }}" data-quote="{{ $purchasePrice->price }}">
+                                    {{ $subscription['record']?->package_id === $package->id ? 'Renew Now' : 'Buy Now' }}
                                 </button>
                             @else
                                 <button type="button" class="btn btn-secondary mt-3" disabled>Purchase unavailable</button>
@@ -75,7 +84,10 @@
                         <div class="modal-body">
                             <h3 class="h6">Package Information</h3>
                             <p>{{ $package->description ?? 'No description available.' }}</p>
-                            @include('tenant.plans._prices')
+                            @if ($subscription['status'] === 'Active' && $subscription['record']?->package_id !== $package->id && $subscription['record']?->end_date)
+                        <p>Your new package will start on {{ $subscription['record']->end_date->format('d M Y H:i T') }} when your current package expires.</p>
+                    @endif
+                    @include('tenant.plans._prices')
                             <h3 class="h6 mt-4">Usage Limits</h3>
                             <p class="small text-muted">Configured only; not currently enforced. Products and customers are unlimited.</p>
                             @include('tenant.plans._limits')
@@ -126,7 +138,7 @@
                             <td>{{ $payment->quote['name'] }} / {{ ucfirst($payment->billing_cycle) }}</td>
                             <td>{{ $payment->currency }} {{ number_format($payment->amount / 100, 2) }}</td>
                             <td>{{ ucfirst($payment->mode) }}</td>
-                            <td>{{ ucfirst($payment->status) }}</td>
+                            <td>{{ $payment->message }}</td>
                             <td>
                                 @if ($canPurchase && ! in_array($payment->status, ['captured', 'rejected'], true))
                                     <button type="button" class="btn btn-sm btn-outline-primary" 
@@ -146,7 +158,7 @@
         </div>
         <div class="listing-table-footer">{{ $payments->links() }}</div>
     </section>
-    <div data-package-payment-urls data-status="{{ route('tenant.package-payments.show', 0) }}" data-verify="{{ route('tenant.package-payments.verify', 0) }}"></div>
+    <div data-package-payment-urls data-status="{{ route('tenant.package-payments.show', 0) }}" data-dismiss="{{ route('tenant.package-payments.dismiss', 0) }}" data-verify="{{ route('tenant.package-payments.verify', 0) }}"></div>
 </div>
 @endsection
 @push('scripts')

@@ -36,20 +36,32 @@
         return data.data;
     };
     const path = (template, id) => template.replace("/0", "/" + id);
-    const open = async (payment) => {
+    const feedback = (payment) =>
+        payment.message ||
+        (payment.status === "captured"
+            ? "Package activated"
+            : "Payment is awaiting capture. Check payment history shortly.");
+    const open = async (payment, storageKey) => {
         if (payment.status === "captured") {
             await message(
-                "Payment confirmed. Your subscription has been updated.",
-                "success",
+                feedback(payment),
+                payment.fulfillment_status === "resolution_required"
+                    ? "warning"
+                    : "success",
             );
             location.reload();
             return;
         }
         if (!payment.checkout) {
+            if (
+                storageKey &&
+                (payment.local_checkout_status === "expired" ||
+                    payment.status === "rejected")
+            )
+                sessionStorage.removeItem(storageKey);
             await message(
-                payment.status === "rejected"
-                    ? "Checkout was rejected. Contact support, then start a new purchase."
-                    : "Order confirmation is pending. Use Check / resume in payment history; another order will not be created.",
+                payment.message ||
+                    "Payment pending. Check payment history or choose another package.",
             );
             location.reload();
             return;
@@ -59,28 +71,25 @@
                 "Checkout could not load. Retry from payment history.",
             );
         lock(true);
+        let verifying = false;
         const checkout = new Razorpay({
             ...payment.checkout,
             handler: async (result) => {
+                verifying = true;
                 try {
                     const verified = await request(
                         path(urls.dataset.verify, payment.id),
                         result,
                     );
-                    if (verified.status === "captured")
-                        sessionStorage.removeItem(
-                            "platform-checkout:" +
-                                root.dataset.checkoutScope +
-                                ":" +
-                                payment.package_id +
-                                ":" +
-                                payment.billing_cycle,
-                        );
+                    if (verified.status === "captured" && storageKey)
+                        sessionStorage.removeItem(storageKey);
                     await message(
-                        verified.status === "captured"
-                            ? "Payment confirmed. Subscription updated."
-                            : "Payment is awaiting capture. Check payment history shortly.",
-                        verified.status === "captured" ? "success" : "info",
+                        feedback(verified),
+                        verified.fulfillment_status === "resolution_required"
+                            ? "warning"
+                            : verified.status === "captured"
+                              ? "success"
+                              : "info",
                     );
                     location.reload();
                 } catch (error) {
@@ -91,9 +100,20 @@
             },
             modal: {
                 ondismiss: async () => {
+                    if (verifying) return;
+                    try {
+                        if (urls.dataset.dismiss)
+                            await request(
+                                path(urls.dataset.dismiss, payment.id),
+                                {},
+                            );
+                    } catch {
+                        // Local feedback does not depend on delivery of the dismissal notification.
+                    }
+                    if (storageKey) sessionStorage.removeItem(storageKey);
                     lock(false);
                     await message(
-                        "Checkout dismissed. You can resume it from payment history. Any later capture will still be confirmed.",
+                        "Checkout dismissed; you can retry or choose another package. Any later capture will still be verified.",
                     );
                     location.reload();
                 },
@@ -101,7 +121,7 @@
         });
         checkout.on("payment.failed", () =>
             message(
-                "Payment failed. Retry within checkout or resume from payment history.",
+                "Payment failed. You can retry or choose another package.",
                 "warning",
             ),
         );
@@ -119,18 +139,20 @@
         button.addEventListener("click", async () => {
             if (busy) return;
             lock(true);
+            let storageKey;
             try {
                 let payment;
                 if (button.dataset.packageResume) {
                     payment = await request(button.dataset.packageResume);
                 } else {
-                    const storageKey =
-                        "platform-checkout:" +
-                        root.dataset.checkoutScope +
-                        ":" +
-                        button.dataset.package +
-                        ":" +
-                        button.dataset.cycle;
+                    storageKey = [
+                        "platform-checkout",
+                        root.dataset.checkoutScope,
+                        root.dataset.checkoutMode,
+                        button.dataset.package,
+                        button.dataset.cycle,
+                        button.dataset.quote,
+                    ].join(":");
                     let key = sessionStorage.getItem(storageKey);
                     if (!key) {
                         key = crypto.randomUUID();
@@ -144,7 +166,7 @@
                         sessionStorage.removeItem(storageKey);
                 }
                 lock(false);
-                await open(payment);
+                await open(payment, storageKey);
             } catch (error) {
                 lock(false);
                 await message(error.message, "warning");

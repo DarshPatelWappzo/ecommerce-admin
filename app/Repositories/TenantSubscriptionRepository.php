@@ -20,9 +20,17 @@ class TenantSubscriptionRepository
 
     public function currentForPurchase(TenantDatabase $tenant, string $mode): ?UserPackage
     {
-        $records = $this->forTenant($tenant)->filter(fn(UserPackage $record): bool => $record->mode === null || $record->mode === $mode);
+        $records = $this->forTenant($tenant)->filter(fn(UserPackage $record): bool => ($record->mode === null || $record->mode === $mode) && $record->start_date->lte(now()));
+        $active = $records->first(fn(UserPackage $record): bool => in_array($record->status, ['active', 'scheduled', 'grace_period'], true)
+            && ($record->end_date === null || $record->end_date->isFuture()));
 
-        return $records->first(fn(UserPackage $record): bool => in_array($record->status, ['active', 'grace_period'], true)
-            && ($record->end_date === null || $record->end_date->isFuture() || $record->grace_expires_at?->isFuture())) ?? $records->first();
+        return $active ?? $records->first(fn(UserPackage $record): bool => in_array($record->status, ['active', 'scheduled', 'grace_period'], true)
+            && $record->grace_expires_at?->isFuture()) ?? $records->first();
+    }
+
+    public function scheduled(TenantDatabase $tenant, string $mode): ?UserPackage
+    {
+        return $this->forTenant($tenant)->first(fn(UserPackage $record): bool => ($record->mode === null || $record->mode === $mode) && $record->package_payment_id !== null
+            && in_array($record->status, ['active', 'scheduled'], true) && $record->start_date->isFuture());
     }
 }
