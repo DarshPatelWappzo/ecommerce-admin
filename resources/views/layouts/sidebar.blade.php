@@ -38,6 +38,9 @@
             <div class="sidebar-group">
                 <span class="sidebar-label">System</span>
                 @if (auth()->user()?->is_super_admin)
+                    <a class="sidebar-link {{ request()->routeIs('super-admin.payment-history.*') ? 'active' : '' }}"
+                        href="{{ route('super-admin.payment-history.index') }}" data-tooltip="Payment History">
+                        <i class="fa-solid fa-receipt" aria-hidden="true"></i><span>Payment History</span></a>
                     <a class="sidebar-link {{ request()->routeIs('super-admin.platform-payments.*') ? 'active' : '' }}"
                         href="{{ route('super-admin.platform-payments.index') }}"
                         data-tooltip="Payment Configuration"><i class="fa-solid fa-credit-card"

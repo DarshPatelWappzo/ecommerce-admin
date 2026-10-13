@@ -4,6 +4,7 @@ use App\Http\Controllers\PackagePaymentController;
 use App\Http\Controllers\SuperAdmin\AuditLogController;
 use App\Http\Controllers\SuperAdmin\AuthController;
 use App\Http\Controllers\SuperAdmin\PackageController;
+use App\Http\Controllers\SuperAdmin\PaymentHistoryController;
 use App\Http\Controllers\SuperAdmin\PlatformGatewayController;
 use App\Http\Controllers\SuperAdmin\TenantProvisioningController;
 use App\Http\Controllers\SuperAdmin\UserController;
@@ -169,6 +170,9 @@ Route::prefix('super-admin')->name('super-admin.')->group(function (): void {
         ->name('dashboard');
 
     Route::middleware(['auth', EnsureSuperAdmin::class])->group(function (): void {
+        Route::get('payment-history', [PaymentHistoryController::class, 'index'])->name('payment-history.index');
+        Route::get('payment-history/export', [PaymentHistoryController::class, 'export'])->name('payment-history.export');
+        Route::get('payment-history/{payment}', [PaymentHistoryController::class, 'show'])->whereNumber('payment')->name('payment-history.show');
         Route::get('payment-configuration', [PlatformGatewayController::class, 'index'])->name('platform-payments.index');
         Route::put('payment-configuration', [PlatformGatewayController::class, 'update'])->middleware('throttle:10,1')->name('platform-payments.update');
         Route::controller(UserController::class)->group(function (): void {
