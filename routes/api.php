@@ -17,6 +17,8 @@ use App\Http\Controllers\CustomerReplacementController;
 use App\Http\Controllers\CustomerReturnController;
 use App\Http\Controllers\CustomerWishlistController;
 use App\Http\Controllers\OrderPaymentWebhookController;
+use App\Http\Controllers\PackagePaymentController;
+use App\Http\Controllers\PlatformWebhookController;
 use App\Http\Controllers\TenantAuditLogController;
 use App\Http\Controllers\TenantCatalogController;
 use App\Http\Controllers\TenantCouponController;
@@ -45,6 +47,14 @@ Route::controller(TenantAuthController::class)->group(function (): void {
 });
 
 Route::middleware(AuthenticateTenantToken::class)->group(function (): void {
+    Route::controller(PackagePaymentController::class)->middleware('throttle:20,1')->group(function (): void {
+        Route::get('tenant/packages', 'packages')->name('api.tenant.package-payments.packages');
+        Route::post('tenant/packages/{package}/checkout', 'checkout')->whereNumber('package')->name('api.tenant.package-payments.checkout');
+        Route::post('tenant/package-payments/{payment}/verify', 'verify')->whereNumber('payment')->name('api.tenant.package-payments.verify');
+        Route::get('tenant/package-payments/{payment}', 'show')->whereNumber('payment')->name('api.tenant.package-payments.show');
+        Route::get('tenant/subscription', 'subscription')->name('api.tenant.package-payments.subscription');
+        Route::get('tenant/subscription/payments', 'history')->name('api.tenant.package-payments.history');
+    });
     Route::get('tenant/audit-logs', [TenantAuditLogController::class, 'index'])->name('api.tenant.audit-logs.index');
     Route::get('tenant/audit-logs/{auditLog}', [TenantAuditLogController::class, 'show'])->whereNumber('auditLog')->name('api.tenant.audit-logs.show');
     Route::prefix('tenant/replacements')->name('api.tenant.replacements.')->controller(TenantReplacementController::class)->group(function (): void {
@@ -156,6 +166,8 @@ Route::middleware(AuthenticateTenantToken::class)->group(function (): void {
 
 Route::post('tenant/payments/razorpay/webhook/{tenantId?}/{credentialId?}', OrderPaymentWebhookController::class)
     ->whereNumber('tenantId')->whereNumber('credentialId')->name('api.tenant.payments.webhook');
+
+Route::post('webhooks/platform/razorpay/{version}', PlatformWebhookController::class)->whereNumber('version')->name('api.platform-payments.webhook');
 
 Route::prefix('customer')->name('api.customer.')->group(function (): void {
     Route::middleware(['throttle:10,1', ResolveTenant::class])->controller(CustomerAuthController::class)->group(function (): void {
