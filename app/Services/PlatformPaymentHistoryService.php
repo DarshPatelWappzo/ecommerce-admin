@@ -22,7 +22,7 @@ class PlatformPaymentHistoryService
             'payments' => $payments,
             'earnings' => $this->payments->earnings($filters),
             'filters' => $filters,
-            'mode' => $filters['mode'] ?? 'live'
+            'mode' => $filters['mode'] ?? 'test' // instead of 'test' write 'live' on production
         ];
     }
 
@@ -180,6 +180,6 @@ class PlatformPaymentHistoryService
                 fputcsv($output, $values, ',', '"', '');
             }
             fclose($output);
-        }, 'platform-payments-' . ($filters['mode'] ?? 'live') . '.csv', ['Content-Type' => 'text/csv; charset=UTF-8', 'Cache-Control' => 'no-store']);
+        }, 'platform-payments-' . ($filters['mode'] ?? 'test') . '.csv', ['Content-Type' => 'text/csv; charset=UTF-8', 'Cache-Control' => 'no-store']); // instead of 'test' write 'live' on production
     }
 }

@@ -1,0 +1,560 @@
+body:has(.commerce-dashboard) {
+    --page-bg: #f4faff;
+    --sidebar-bg: #f4faff;
+    --ui-border: #e3edf9;
+}
+.commerce-dashboard {
+    color: #101342;
+}
+.commerce-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+.commerce-heading h1 {
+    margin: 0 0 4px;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.6px;
+}
+.commerce-heading p {
+    margin: 0;
+    color: #53658d;
+    font-size: 16px;
+}
+.commerce-demo-label {
+    padding: 5px 10px;
+    border: 1px solid #dfebfa;
+    border-radius: 6px;
+    color: #607399;
+    font-size: 12px;
+    white-space: nowrap;
+}
+.commerce-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.commerce-card {
+    min-width: 0;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #e3edf9;
+    border-radius: 10px;
+}
+.commerce-metric {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    min-height: 132px;
+}
+.commerce-metric-icon {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    font-size: 27px;
+}
+.commerce-metric h2 {
+    margin: 0 0 3px;
+    font-size: 14px;
+    font-weight: 500;
+}
+.commerce-metric strong {
+    display: block;
+    font-size: clamp(23px, 1.8vw, 29px);
+    line-height: 1.3;
+    white-space: nowrap;
+}
+.commerce-metric p {
+    margin: 5px 0 0;
+    color: #586b96;
+    font-size: 13px;
+}
+.commerce-growth {
+    color: #00a336;
+    white-space: nowrap;
+    margin-right: 4px;
+}
+.commerce-tone-blue {
+    color: #0069ff;
+    background: #e7f5ff;
+}
+.commerce-tone-purple {
+    color: #8135ff;
+    background: #f0e9ff;
+}
+.commerce-tone-green {
+    color: #00b962;
+    background: #dffff0;
+}
+.commerce-tone-orange {
+    color: #ec8800;
+    background: #fff2df;
+}
+.commerce-tone-pink {
+    color: #c22be8;
+    background: #fbe0ff;
+}
+.commerce-tone-red {
+    color: #eb3541;
+    background: #ffe0e3;
+}
+.commerce-charts {
+    display: grid;
+    grid-template-columns: 1.42fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.commerce-card-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 32px;
+    margin-bottom: 16px;
+}
+.commerce-card-heading h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+}
+.commerce-card-heading a {
+    color: #0069ff;
+    text-decoration: none;
+    font-size: 14px;
+    white-space: nowrap;
+}
+.commerce-card-heading a:hover {
+    text-decoration: underline;
+}
+.commerce-period {
+    border: 1px solid #e3edf9;
+    padding: 7px 11px;
+    border-radius: 7px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+.commerce-revenue {
+    display: flex;
+    height: 205px;
+    gap: 16px;
+    margin: 28px 8px 16px 0;
+    padding-bottom: 30px;
+}
+.commerce-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 30px;
+    flex-shrink: 0;
+    margin: -9px 0;
+    text-align: right;
+    color: #586b96;
+    font-size: 12px;
+}
+.commerce-bars {
+    display: flex;
+    justify-content: space-around;
+    flex: 1;
+    gap: 12px;
+    border-left: 1px solid #e1ebf9;
+    border-bottom: 1px solid #e1ebf9;
+    background: repeating-linear-gradient(
+        to top,
+        transparent 0,
+        transparent calc(25% - 1px),
+        #e8eff9 calc(25% - 1px),
+        #e8eff9 25%
+    );
+}
+.commerce-bar-column {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-direction: column;
+    position: relative;
+    width: 12%;
+}
+.commerce-bar {
+    width: 85%;
+    max-width: 64px;
+    background: linear-gradient(110deg, #63bbff, #48a5f6);
+    border-radius: 4px 4px 0 0;
+}
+.commerce-bar-column > span {
+    position: absolute;
+    top: calc(100% + 12px);
+    color: #50628b;
+    font-size: 13px;
+    white-space: nowrap;
+}
+.commerce-subscriptions {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 28px;
+    min-height: 233px;
+}
+.commerce-donut {
+    display: grid;
+    place-items: center;
+    width: 186px;
+    height: 186px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #e8eff9;
+}
+.commerce-donut > div {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    width: 116px;
+    height: 116px;
+    background: #fff;
+    border-radius: 50%;
+    font-size: 19px;
+}
+.commerce-donut strong {
+    font-size: 29px;
+    line-height: 1.2;
+}
+.commerce-legend {
+    display: grid;
+    gap: 16px;
+    flex: 1;
+    max-width: 240px;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    font-size: 14px;
+}
+.commerce-legend li {
+    display: grid;
+    grid-template-columns: 12px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    white-space: nowrap;
+}
+.commerce-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+.commerce-dot-active {
+    background: #00b985;
+}
+.commerce-dot-grace {
+    background: #ffb63f;
+}
+.commerce-dot-expired {
+    background: #ff615c;
+}
+.commerce-dot-cancelled {
+    background: #a8b7cf;
+}
+.commerce-muted {
+    color: #586b96;
+}
+.commerce-secondary-charts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.commerce-secondary-charts .commerce-card-heading {
+    flex-wrap: wrap;
+}
+.commerce-package-revenue {
+    display: grid;
+    gap: 21px;
+    padding: 8px 0 16px;
+    margin: 0;
+    list-style: none;
+}
+.commerce-package-revenue li {
+    display: grid;
+    grid-template-columns: 80px minmax(0, 1fr) 82px;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+}
+.commerce-package-track {
+    height: 19px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: #f2f7fc;
+}
+.commerce-package-track > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: #4aabff;
+}
+.commerce-package-revenue li:first-child .commerce-package-track > span {
+    background: #2485f8;
+}
+.commerce-package-amount {
+    text-align: right;
+    color: #50628b;
+    white-space: nowrap;
+}
+.commerce-chart-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+select.commerce-period {
+    color: inherit;
+    background-color: #fff;
+    max-width: 100%;
+}
+.commerce-chart-status,
+.commerce-report-note {
+    font-size: 12px;
+    margin: 12px 0;
+}
+.commerce-empty {
+    display: block !important;
+    color: #586b96;
+}
+.commerce-package-revenue li {
+    grid-template-columns: minmax(65px, 1fr) minmax(60px, 2fr) auto;
+}
+.commerce-package-revenue li > span:first-child {
+    overflow-wrap: anywhere;
+}
+.commerce-axis {
+    width: auto;
+    min-width: 30px;
+}
+.commerce-bar-column > span {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.1;
+}
+.commerce-metric > div {
+    min-width: 0;
+}
+.commerce-metric strong {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+.commerce-users-timeline {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-top: 8px;
+}
+.commerce-timeline-grid {
+    stroke: #eaf1fa;
+    stroke-width: 1;
+    fill: none;
+}
+.commerce-timeline-labels {
+    fill: #7183a2;
+    font-family: inherit;
+    font-size: 12px;
+}
+@media (max-width: 1199px) {
+    .commerce-secondary-charts {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+@media (max-width: 575px) {
+    .commerce-package-revenue li {
+        grid-template-columns: 65px minmax(0, 1fr) 74px;
+        gap: 8px;
+        font-size: 12px;
+    }
+}
+.commerce-tables {
+    display: grid;
+    grid-template-columns: 1.23fr 1fr;
+    gap: 16px;
+}
+.commerce-tables .commerce-card-heading {
+    margin-bottom: 8px;
+}
+.commerce-table-note {
+    font-size: 12px;
+    white-space: nowrap;
+}
+.app-content .commerce-dashboard .commerce-table {
+    font-size: 12px;
+    white-space: nowrap;
+}
+.commerce-dashboard .commerce-table > thead > tr > th {
+    color: #101342;
+    background: #f3f9ff;
+    font-weight: 600;
+    padding: 10px 9px;
+    border-color: #eaf1fa;
+}
+.commerce-dashboard .commerce-table > tbody > tr > td {
+    color: #50628b;
+    padding: 6px 9px;
+    border-color: #edf3fb;
+    background: #fff;
+}
+.commerce-tenant {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+}
+.commerce-avatar {
+    display: inline-grid;
+    place-items: center;
+    width: 31px;
+    height: 31px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 600;
+}
+.commerce-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    line-height: 1.4;
+}
+.commerce-badge-success {
+    background: #e0fbed;
+    color: #008c30;
+}
+.commerce-badge-danger {
+    background: #ffe7e9;
+    color: #e31a2e;
+}
+.commerce-badge-warning {
+    background: #fff2df;
+    color: #ac5700;
+}
+.commerce-badge-info {
+    background: #edf5ff;
+    color: #234a85;
+}
+@media (max-width: 1399px) {
+    .commerce-metric {
+        gap: 12px;
+        padding: 16px;
+    }
+    .commerce-metric-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 23px;
+    }
+    .commerce-subscriptions {
+        gap: 16px;
+    }
+    .commerce-donut {
+        width: 150px;
+        height: 150px;
+    }
+    .commerce-donut > div {
+        width: 98px;
+        height: 98px;
+    }
+    .commerce-legend {
+        font-size: 12px;
+    }
+    .commerce-legend li {
+        gap: 8px;
+    }
+}
+@media (max-width: 1399px) {
+    .commerce-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .commerce-charts,
+    .commerce-tables {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .commerce-subscriptions {
+        justify-content: center;
+        gap: 40px;
+    }
+    .commerce-donut {
+        width: 186px;
+        height: 186px;
+    }
+    .commerce-donut > div {
+        width: 116px;
+        height: 116px;
+    }
+    .commerce-legend {
+        font-size: 14px;
+    }
+}
+@media (max-width: 575px) {
+    .commerce-heading {
+        align-items: flex-start;
+    }
+    .commerce-heading h1 {
+        font-size: 27px;
+    }
+    .commerce-heading p {
+        font-size: 14px;
+    }
+    .commerce-demo-label {
+        font-size: 10px;
+    }
+    .commerce-metrics {
+        gap: 10px;
+    }
+    .commerce-metric {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 12px;
+        padding: 14px;
+    }
+    .commerce-metric strong {
+        font-size: 22px;
+    }
+    .commerce-metric h2,
+    .commerce-metric p {
+        font-size: 12px;
+    }
+    .commerce-card {
+        padding: 14px;
+    }
+    .commerce-card-heading h2 {
+        font-size: 16px;
+    }
+    .commerce-period {
+        font-size: 10px;
+        padding: 6px;
+    }
+    .commerce-revenue {
+        gap: 8px;
+    }
+    .commerce-bars {
+        gap: 5px;
+    }
+    .commerce-bar-column > span {
+        font-size: 9px;
+    }
+    .commerce-subscriptions {
+        flex-direction: column;
+        gap: 22px;
+        padding: 12px 0;
+    }
+    .commerce-legend {
+        width: 100%;
+    }
+}
+@media (max-width: 380px) {
+    .commerce-metrics {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .commerce-metric {
+        flex-direction: row;
+        align-items: center;
+    }
+}

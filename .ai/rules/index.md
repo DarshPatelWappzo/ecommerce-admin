@@ -10,7 +10,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | app/Services/*Payment*.php, app/Services/Razorpay*.php, app/Services/TenantRefundService.php, app/Http/Controllers/OrderPaymentWebhookController.php | .ai/rules/http-controllers.md |
 | app/Http/** | .ai/rules/http.md |
 | app/Http/Middleware/ResolveTenant.php | .ai/rules/middleware.md |
-| app/Repositories/PlatformPaymentHistoryRepository.php, app/Services/PlatformPaymentHistoryService.php | .ai/rules/repositories-services.md |
+| app/Repositories/PlatformPaymentHistoryRepository.php, app/Services/PlatformPaymentHistoryService.php, app/Repositories/SuperAdminDashboardRepository.php, app/Services/SuperAdminDashboardService.php | .ai/rules/repositories-services.md |
 | app/Http/Requests/Tenant*UserUpdateRequest.php | .ai/rules/requests.md |
 | app/Services/TenantReturn*.php, app/Services/TenantRefund*.php, app/Services/RazorpayRefundGateway.php, app/Services/*Subscription*.php, app/Services/PackagePricingService.php, app/Services/InfrastructureCostEstimator.php, app/Services/*Payment*.php, app/Services/PackageCheckoutService.php, app/Services/*Subscription*.php | .ai/rules/services-services.md |
 | app/Services/TenantOrder*.php, app/Services/TenantCoupon*.php, app/Services/TenantPaymentService.php, app/Services/TenantOrderService.php, app/Services/TenantInvoice*.php, app/Services/Customer*.php, app/Services/Tenant*.php | .ai/rules/services.md |

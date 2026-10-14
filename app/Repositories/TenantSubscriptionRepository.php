@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\TenantDatabase;
 use App\Models\UserPackage;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 class TenantSubscriptionRepository
@@ -20,12 +21,23 @@ class TenantSubscriptionRepository
 
     public function currentForPurchase(TenantDatabase $tenant, string $mode): ?UserPackage
     {
-        $records = $this->forTenant($tenant)->filter(fn(UserPackage $record): bool => ($record->mode === null || $record->mode === $mode) && $record->start_date->lte(now()));
-        $active = $records->first(fn(UserPackage $record): bool => in_array($record->status, ['active', 'scheduled', 'grace_period'], true)
-            && ($record->end_date === null || $record->end_date->isFuture()));
+        return $this->currentCandidates($mode)->where('user_id', $tenant->user_id)
+            ->where(fn(Builder $query) => $query->whereNull('tenant_database_id')->orWhere('tenant_database_id', $tenant->id))
+            ->with(['package' => fn($query) => $query->withTrashed()])->first();
+    }
 
-        return $active ?? $records->first(fn(UserPackage $record): bool => in_array($record->status, ['active', 'scheduled', 'grace_period'], true)
-            && $record->grace_expires_at?->isFuture()) ?? $records->first();
+    /** Shared entitlement precedence for checkout and read-only central reporting. */
+    public function currentCandidates(string $mode): Builder
+    {
+        return UserPackage::query()
+            ->where(fn(Builder $query) => $query->whereNull('mode')->orWhere('mode', $mode))
+            ->where('start_date', '<=', now())
+            ->orderByRaw("CASE
+                WHEN status IN ('active', 'scheduled', 'grace_period') AND (end_date IS NULL OR end_date > ?) THEN 0
+                WHEN status IN ('active', 'scheduled', 'grace_period') AND grace_expires_at > ? THEN 1
+                ELSE 2 END", [now(), now()])
+            ->orderByDesc('start_date')
+            ->orderByDesc('id');
     }
 
     public function scheduled(TenantDatabase $tenant, string $mode): ?UserPackage

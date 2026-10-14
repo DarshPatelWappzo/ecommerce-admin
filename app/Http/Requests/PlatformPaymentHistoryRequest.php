@@ -14,7 +14,7 @@ class PlatformPaymentHistoryRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $this->merge(['mode' => $this->input('mode') ?: 'live']);
+        $this->merge(['mode' => $this->input('mode') ?: 'test']); // instead of 'test' write 'live' on production
     }
 
     /** @return array<string, mixed> */

@@ -16,7 +16,6 @@ class PaymentHistoryController extends Controller
     public function index(PlatformPaymentHistoryRequest $request): View
     {
         $data = $this->history->listing($request->validated());
-
         return view('super-admin.payment-history.index', $data);
     }
 

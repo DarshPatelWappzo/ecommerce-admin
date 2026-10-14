@@ -2,9 +2,25 @@
 @section('title', 'Payment History')
 @section('content')
     <div class="container-fluid">
-    @php
-        $filterFields = ['from', 'to', 'user_id', 'tenant_id', 'domain', 'package_id', 'status', 'fulfillment', 'gateway', 'mode', 'billing_cycle', 'currency', 'sort', 'direction', 'per_page'];
-    @endphp
+        @php
+            $filterFields = [
+                'from',
+                'to',
+                'user_id',
+                'tenant_id',
+                'domain',
+                'package_id',
+                'status',
+                'fulfillment',
+                'gateway',
+                'mode',
+                'billing_cycle',
+                'currency',
+                'sort',
+                'direction',
+                'per_page',
+            ];
+        @endphp
         <div class="listing-page-header">
             <div>
                 <h1 class="page-title mb-0">Payment History</h1>
@@ -106,6 +122,21 @@
                     </thead>
                     <tbody>
                         @forelse($payments as $payment)
+                            @if ($payment['currency'] === 'INR')
+                                @php
+                                    $paymentInPaise = str_pad((string) $payment['amount_minor'], 3, '0', STR_PAD_LEFT);
+                                    $paymentInRupees = preg_replace(
+                                        '/\B(?=(\d{3})+(?!\d))/',
+                                        ',',
+                                        substr($paymentInPaise, 0, -2),
+                                    );
+                                    $amount = '₹' . $paymentInRupees . '.' . substr($paymentInPaise, -2);
+                                @endphp
+                            @else
+                                @php
+                                    $amount = $payment['amount_minor'] . ' ' . $payment['currency'];
+                                @endphp
+                            @endif
                             <tr>
                                 <td>{{ $payment['reference'] }}</td>
                                 <td>{{ $payment['owner_name'] }} @if ($payment['owner_deleted'])
@@ -124,7 +155,7 @@
                                     <div class="small text-secondary">{{ $payment['package_source'] }} · Purchase type:
                                         {{ $payment['purchase_type'] }}</div>
                                 </td>
-                                <td>{{ $payment['amount_minor'] }} minor units <strong>{{ $payment['currency'] }}</strong>
+                                <td>{{ $amount }}</strong>
                                 </td>
                                 <td>{{ $payment['gateway'] }}<div><span
                                             class="badge text-bg-{{ $payment['mode'] === 'test' ? 'warning' : 'primary' }}">{{ strtoupper($payment['mode']) }}</span>

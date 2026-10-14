@@ -3,6 +3,7 @@
 use App\Http\Controllers\PackagePaymentController;
 use App\Http\Controllers\SuperAdmin\AuditLogController;
 use App\Http\Controllers\SuperAdmin\AuthController;
+use App\Http\Controllers\SuperAdmin\DashboardController;
 use App\Http\Controllers\SuperAdmin\PackageController;
 use App\Http\Controllers\SuperAdmin\PaymentHistoryController;
 use App\Http\Controllers\SuperAdmin\PlatformGatewayController;
@@ -165,11 +166,12 @@ Route::prefix('super-admin')->name('super-admin.')->group(function (): void {
             ->name('logout');
     });
 
-    Route::view('/dashboard', 'super-admin.dashboard')
+    Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware(['auth', EnsureSuperAdmin::class])
         ->name('dashboard');
 
     Route::middleware(['auth', EnsureSuperAdmin::class])->group(function (): void {
+        Route::get('dashboard/chart', [DashboardController::class, 'chart'])->name('dashboard.chart');
         Route::get('payment-history', [PaymentHistoryController::class, 'index'])->name('payment-history.index');
         Route::get('payment-history/export', [PaymentHistoryController::class, 'export'])->name('payment-history.export');
         Route::get('payment-history/{payment}', [PaymentHistoryController::class, 'show'])->whereNumber('payment')->name('payment-history.show');
