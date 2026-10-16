@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\TenantChangePasswordRequest;
+use App\Http\Requests\TenantDashboardRequest;
 use App\Http\Requests\TenantLoginRequest;
 use App\Models\Tenant\User;
+use App\Services\TenantDashboardService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -14,6 +16,9 @@ use Illuminate\Support\Facades\Hash;
 
 class TenantAuthController extends Controller
 {
+    /** Initialize read-only tenant reporting. */
+    public function __construct(private readonly TenantDashboardService $dashboardService) {}
+
     /**
      * Show the tenant login form.
      *
@@ -35,12 +40,12 @@ class TenantAuthController extends Controller
     }
 
     /**
-     * Show the tenant dashboard with the current user and role names.
+     * Show authorized store reports for the selected date range.
      *
-     * @param  Request  $request  The incoming request.
+     * @param  TenantDashboardRequest  $request  Authorized reporting filters.
      * @return View The response for this action.
      */
-    public function dashboard(Request $request): View
+    public function dashboard(TenantDashboardRequest $request): View
     {
         $tenantUser = Auth::guard('tenant')->user();
         abort_unless($tenantUser instanceof User, 401);
@@ -51,6 +56,7 @@ class TenantAuthController extends Controller
         $data['tenantUser'] = $tenantUser;
         $data['tenantDomain'] = $request->session()->get('tenant_domain');
         $data['roleNames'] = $tenantUser->roles->pluck('name')->join(', ');
+        $data['dashboard'] = $this->dashboardService->overview($tenantUser, $request->validated());
 
         return view('tenant.dashboard', $data);
     }

@@ -20,37 +20,40 @@
                 <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
             @endif
 
-            <form method="POST" action="{{ route('tenant.login.store') }}">
+            <form id="tenant-login-form" method="POST" action="{{ route('tenant.login.store') }}" novalidate>
                 @csrf
                 <div class="mb-3">
                     <label class="form-label" for="domain">Store domain</label>
-                    <input class="form-control @error('domain') is-invalid @enderror" id="domain" name="domain"
+                    <input class="form-control" id="domain" name="domain"
                         type="text" value="{{ old('domain', request('domain')) }}" placeholder="example.com"
-                        autocomplete="url" required autofocus>
+                        autocomplete="url" autofocus>
                     @error('domain')
-                        <div class="invalid-feedback">{{ $message }}</div>
+                        <span class="field-error" role="alert">{{ $message }}</span>
                     @enderror
                 </div>
                 <div class="mb-3">
                     <label class="form-label" for="email">Email address</label>
-                    <input class="form-control @error('email') is-invalid @enderror" id="email" name="email"
-                        type="email" value="{{ old('email') }}" autocomplete="email" required>
+                    <input class="form-control" id="email" name="email"
+                        type="email" value="{{ old('email') }}" autocomplete="email">
                     @error('email')
-                        <div class="invalid-feedback">{{ $message }}</div>
+                        <span class="field-error" role="alert">{{ $message }}</span>
                     @enderror
                 </div>
                 <div class="mb-4">
                     <label class="form-label" for="password">Password</label>
-                    <input class="form-control @error('password') is-invalid @enderror" id="password" name="password"
-                        type="password" autocomplete="current-password" required>
+                    <input class="form-control" id="password" name="password"
+                        type="password" autocomplete="current-password">
                     @error('password')
-                        <div class="invalid-feedback">{{ $message }}</div>
+                        <span class="field-error" role="alert">{{ $message }}</span>
                     @enderror
                 </div>
                 <button class="btn btn-primary w-100" type="submit">Sign in</button>
             </form>
         </section>
     </main>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="{{ asset('vendor/jsvalidation/js/jsvalidation.js') }}"></script>
+    {!! JsValidator::formRequest(\App\Http\Requests\TenantLoginRequest::class, '#tenant-login-form') !!}
 </body>
 
 </html>

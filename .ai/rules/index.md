@@ -8,6 +8,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 | bootstrap/app.php | .ai/rules/bootstrap.md |
 | app/Http/Controllers/** | .ai/rules/controllers.md |
 | app/Services/*Payment*.php, app/Services/Razorpay*.php, app/Services/TenantRefundService.php, app/Http/Controllers/OrderPaymentWebhookController.php | .ai/rules/http-controllers.md |
+| app/Repositories/TenantDashboardRepository.php, app/Services/TenantDashboardService.php, app/Http/Requests/TenantDashboardRequest.php | .ai/rules/http-requests.md |
 | app/Http/** | .ai/rules/http.md |
 | app/Http/Middleware/ResolveTenant.php | .ai/rules/middleware.md |
 | app/Repositories/PlatformPaymentHistoryRepository.php, app/Services/PlatformPaymentHistoryService.php, app/Repositories/SuperAdminDashboardRepository.php, app/Services/SuperAdminDashboardService.php | .ai/rules/repositories-services.md |
