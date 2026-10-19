@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Package;
 use App\Models\PackagePayment;
 use App\Models\TenantDatabase;
 use App\Models\UserPackage;
@@ -50,6 +51,8 @@ class TenantSubscriptionService
         $start = $current && $this->status($current) === 'Active' && $current->end_date?->gt($payment->paid_at)
             ? $current->end_date->copy() : $payment->paid_at->copy();
         $end = $start->copy()->addMonthsNoOverflow($payment->quote['duration_months']);
+        $graceDays = Package::on(config('subscriptions.connection'))->withTrashed()
+            ->whereKey($payment->package_id)->lockForUpdate()->firstOrFail()->grace_period_days;
 
         return UserPackage::create([
             'user_id' => $tenant->user_id,
@@ -61,12 +64,13 @@ class TenantSubscriptionService
             'billing_cycle' => $payment->billing_cycle,
             'start_date' => $start,
             'end_date' => $end,
-            'grace_expires_at' => $end->copy()->addDays(7),
+            'grace_period_days' => $graceDays,
+            'grace_expires_at' => $end->copy()->addDays($graceDays),
             'status' => $start->isFuture() ? 'scheduled' : 'active',
         ]);
     }
 
-    /** @return array{record: UserPackage|null, scheduled: UserPackage|null, status: string, remaining_days: int|null} */
+    /** @return array{record: UserPackage|null, scheduled: UserPackage|null, status: string, remaining_days: int|null, is_in_grace_period: bool, remaining_grace_days: int} */
     public function summary(TenantDatabase $tenant, string $mode = 'live'): array
     {
         $record = $this->subscriptions->currentForPurchase($tenant, $mode);
@@ -76,7 +80,15 @@ class TenantSubscriptionService
             'scheduled' => $this->subscriptions->scheduled($tenant, $mode),
             'status' => $record ? $this->status($record) : 'No Subscription',
             'remaining_days' => $record?->end_date ? max(0, (int) ceil(now()->diffInDays($record->end_date, false))) : null,
+            'is_in_grace_period' => $record && $this->status($record) === 'Grace Period',
+            'remaining_grace_days' => $record ? $this->remainingGraceDays($record) : 0,
         ];
+    }
+
+    public function remainingGraceDays(UserPackage $record): int
+    {
+        return $this->status($record) === 'Grace Period'
+            ? max(0, (int) ceil(now()->diffInDays($record->grace_expires_at, false))) : 0;
     }
 
     public function status(UserPackage $record): string

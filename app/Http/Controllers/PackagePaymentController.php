@@ -21,10 +21,11 @@ class PackagePaymentController extends Controller
         $summary = $this->subscriptions->summary($request->tenant(), $this->settings->status()['mode']);
         $start = $summary['status'] === 'Active' ? $summary['record']->end_date : now();
         $data = ['data' => $this->packages->catalog()
-            ->map(fn($package): array => [
+            ->map(fn ($package): array => [
                 'id' => $package->id,
                 'name' => $package->name,
                 'description' => $package->description,
+                'grace_period_days' => $package->grace_period_days,
                 'prices' => $package->prices,
                 'pricing_basis' => 'fixed_cycle_price',
                 'purchase_available' => ! $summary['scheduled'] && $start !== null,
@@ -84,6 +85,9 @@ class PackagePaymentController extends Controller
                 'starts_at' => $record->start_date,
                 'expires_at' => $record->end_date,
                 'grace_ends_at' => $record->grace_expires_at,
+                'grace_period_days' => $record->grace_period_days,
+                'is_in_grace_period' => $this->subscriptions->status($record) === 'Grace Period',
+                'remaining_grace_days' => $this->subscriptions->remainingGraceDays($record),
                 'valid_until' => $record->end_date?->copy()->subSecond()->toIso8601String(),
                 'mode' => $record->mode ?? 'live',
                 'price_snapshot' => $record->price_snapshot,

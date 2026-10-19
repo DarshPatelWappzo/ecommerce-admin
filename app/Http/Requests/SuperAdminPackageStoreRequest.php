@@ -20,6 +20,7 @@ class SuperAdminPackageStoreRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
+            'grace_period_days' => ['sometimes', 'required', 'integer', 'min:0', 'max:365'],
             'is_tenant_visible' => ['sometimes', 'boolean'],
             'public_infrastructure' => ['sometimes', 'boolean'],
             'subscription_currency' => ['sometimes', 'required', Rule::in([config('subscriptions.currency')])],

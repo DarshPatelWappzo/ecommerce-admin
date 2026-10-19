@@ -9,11 +9,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['user_id', 'package_id', 'start_date', 'end_date', 'status', 'billing_cycle', 'grace_expires_at', 'tenant_database_id', 'package_payment_id', 'mode', 'price_snapshot'])]
+#[Fillable(['user_id', 'package_id', 'start_date', 'end_date', 'status', 'billing_cycle', 'grace_expires_at', 'grace_period_days', 'tenant_database_id', 'package_payment_id', 'mode', 'price_snapshot'])]
 class UserPackage extends Model
 {
     /** @use HasFactory<UserPackageFactory> */
     use HasFactory, SoftDeletes;
+
+    protected $attributes = ['grace_period_days' => 7];
 
     public function getConnectionName(): string
     {
@@ -33,6 +35,7 @@ class UserPackage extends Model
     protected function casts(): array
     {
         return [
+            'grace_period_days' => 'integer',
             'price_snapshot' => 'array',
             'start_date' => 'datetime',
             'end_date' => 'datetime',

@@ -14,6 +14,14 @@
     </span>
 
     @include('super-admin.package._subscription')
+    <div class="row mt-3">
+        <div class="col-md-4">
+            <label class="form-label" for="grace_period_days">Grace Period (Days)</label>
+            <input class="form-control" id="grace_period_days" name="grace_period_days" type="number" min="0" max="365" step="1" value="{{ old('grace_period_days', $package?->grace_period_days ?? 7) }}">
+            <span class="field-error" data-error-for="grace_period_days">@error('grace_period_days'){{ $message }}@enderror</span>
+            <div class="form-text">Applies to successful new purchases and renewals. Existing purchased terms retain their grace period.</div>
+        </div>
+    </div>
     <h2 class="h5 mt-4">Infrastructure planning</h2>
     <div class="row g-4">
         @foreach (['name' => 'Package name', 'slug' => 'Slug', 'infrastructure_summary' => 'Infrastructure summary'] as $field => $label)

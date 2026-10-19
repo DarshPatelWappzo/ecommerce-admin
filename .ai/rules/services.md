@@ -7,6 +7,7 @@ paths:
   - 'app/Services/TenantInvoice*.php'
   - 'app/Services/Customer*.php'
   - 'app/Services/Tenant*.php'
+  - 'app/Services/*Subscription*.php'
 ---
 
 # Services
@@ -49,3 +50,6 @@ Shared order save/transition and gateway initiation accept User or Customer. Cus
 
 ## Customer lifecycle emails
 Queue customer emails after the tenant transaction commits and capture scalar snapshot data so workers do not need a tenant database connection. Order shipped, delivered and cancelled events notify the order snapshot email; payment receipt emails fire only when fully paid (gateway review captures are excluded). Return approved/rejected and completed manual/gateway refunds notify once through the shared TenantOrderEmailService. Keep existing ReplacementStatusChanged emails instead of adding duplicate decision emails.
+
+## Purchased terms retain configurable grace snapshots
+Grace days are configurable per package (0-365, default 7) and snapshotted at successful payment activation into user_packages.grace_period_days and existing grace_expires_at. Paid scheduled terms retain this snapshot even before their start; later catalog edits and repeated callbacks never recalculate it. This supersedes the fixed seven-day rule. Preserve current route access: the user explicitly chose not to introduce subscription expiry restrictions.

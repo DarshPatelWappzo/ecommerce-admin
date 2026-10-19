@@ -40,6 +40,7 @@
                             <th scope="col">Storage</th>
                             <th scope="col">CPU Vcores</th>
                             <th scope="col">Status</th>
+                            <th scope="col">Grace period</th>
                             <th scope="col">Action</th>
                         </tr>
                     </thead>
@@ -61,6 +62,7 @@
                                         {{ ucfirst($package->status) }}
                                     </span>
                                 </td>
+                                <td>{{ $package->grace_period_days }} days</td>
                                 <td>
                                     <a class="btn btn-sm btn-outline-primary"
                                         href="{{ route('super-admin.package.edit', $package) }}">
@@ -70,7 +72,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="listing-empty">No packages found.</td>
+                                <td colspan="9" class="listing-empty">No packages found.</td>
                             </tr>
                         @endforelse
                     </tbody>

@@ -15,14 +15,19 @@
                 <dt class="col-sm-4">Valid until</dt><dd class="col-sm-8">{{ $current->end_date?->copy()->subSecond()->format('d M Y H:i:s T') ?? 'Not recorded' }} (expiry is exclusive)</dd>
                 <dt class="col-sm-4">Environment</dt><dd class="col-sm-8">{{ ucfirst($current->mode ?? 'live') }}</dd>
                 <dt class="col-sm-4">Remaining days</dt><dd class="col-sm-8">{{ $subscription['remaining_days'] ?? 'Not available' }}</dd>
+                <dt class="col-sm-4">Grace period limit</dt><dd class="col-sm-8">{{ $current->grace_period_days }} days</dd>
+                <dt class="col-sm-4">Subscription expiry</dt><dd class="col-sm-8">{{ $current->end_date?->format('d M Y H:i:s T') ?? 'Not recorded' }}</dd>
+                @if ($subscription['is_in_grace_period'])
+                    <dt class="col-sm-4">Remaining grace days</dt><dd class="col-sm-8">{{ $subscription['remaining_grace_days'] }}</dd>
+                @endif
                 @if ($current->grace_expires_at)
-                    <dt class="col-sm-4">Grace-period expiry</dt><dd class="col-sm-8">{{ $current->grace_expires_at->format('d M Y') }}</dd>
+                    <dt class="col-sm-4">Grace-period expiry</dt><dd class="col-sm-8">{{ $current->grace_expires_at->format('d M Y H:i:s T') }}</dd>
                 @endif
             </dl>
         @else
             <p class="fw-semibold">No active subscription</p>
         @endif
-        <p class="text-muted mt-3 mb-0">One-time payments. Renewals include seven days of grace after expiry. Package changes start after the current active term. Automatic recurring billing is unavailable.</p>
+        <p class="text-muted mt-3 mb-0">One-time payments. Grace periods follow the package configuration when payment is confirmed. Package changes start after the current active term. Automatic recurring billing is unavailable.</p>
         @if (! $gateway['is_enabled'])
             <p class="alert alert-warning mt-3 mb-0">Platform payment configuration is unavailable. Please contact support.</p>
         @else
@@ -31,6 +36,7 @@
     </section>
     @if ($subscription['scheduled'])
         <section class="dashboard-card mb-4"><h2 class="h5">Paid scheduled package</h2>
+            <p>Grace period: {{ $subscription['scheduled']->grace_period_days }} days. Grace expires {{ $subscription['scheduled']->grace_expires_at?->format('d M Y H:i:s T') }}.</p>
             <p>{{ $subscription['scheduled']->price_snapshot['name'] ?? $subscription['scheduled']->package?->name }} — {{ ucfirst($subscription['scheduled']->billing_cycle) }}</p>
             <p>Starts {{ $subscription['scheduled']->start_date->format('d M Y H:i T') }}. Another future purchase is unavailable until it starts.</p>
         </section>
@@ -57,6 +63,7 @@
                     @if ($subscription['status'] === 'Active' && $subscription['record']?->package_id !== $package->id && $subscription['record']?->end_date)
                         <p>Your new package will start on {{ $subscription['record']->end_date->format('d M Y H:i T') }} when your current package expires.</p>
                     @endif
+                    <p>Grace period: {{ $package->grace_period_days }} days after expiry.</p>
                     @include('tenant.plans._prices')
                     @include('tenant.plans._limits')
                     @foreach (\App\Services\PackagePricingService::CYCLES as $purchaseCycle => $months)
@@ -87,6 +94,7 @@
                             @if ($subscription['status'] === 'Active' && $subscription['record']?->package_id !== $package->id && $subscription['record']?->end_date)
                         <p>Your new package will start on {{ $subscription['record']->end_date->format('d M Y H:i T') }} when your current package expires.</p>
                     @endif
+                    <p>Grace period: {{ $package->grace_period_days }} days after expiry.</p>
                     @include('tenant.plans._prices')
                             <h3 class="h6 mt-4">Usage Limits</h3>
                             <p class="small text-muted">Configured only; not currently enforced. Products and customers are unlimited.</p>

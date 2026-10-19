@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'name',
+    'grace_period_days',
     'slug',
     'min_monthly_users',
     'max_monthly_users',
@@ -42,7 +43,12 @@ class Package extends Model
     /** @use HasFactory<PackageFactory> */
     use Auditable, HasFactory, SoftDeletes;
 
-    protected $attributes = ['is_tenant_visible' => true, 'public_infrastructure' => false];
+    protected $attributes = ['is_tenant_visible' => true, 'public_infrastructure' => false, 'grace_period_days' => 7];
+
+    protected function casts(): array
+    {
+        return ['grace_period_days' => 'integer'];
+    }
 
     public function prices(): HasMany
     {
