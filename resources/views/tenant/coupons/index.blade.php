@@ -55,14 +55,38 @@
                                     {{ $coupon->ends_at?->format('d M Y H:i') ?? 'No expiry' }}</td>
                                 <td>{{ $coupon->usage_count }} / {{ $coupon->usage_limit ?? 'Unlimited' }}</td>
                                 <td>
-                                    <div class="d-flex gap-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <a class="btn btn-sm btn-outline-primary"
+                                            href="{{ route('tenant.coupons.show', $coupon) }}" aria-label="View coupon"
+                                            title="View">
+                                            <i class="fa-solid fa-eye me-1" aria-hidden="true"></i>
+                                        </a>
                                         @if ($canUpdate)
                                             <a class="btn btn-sm btn-outline-primary"
-                                                href="{{ route('tenant.coupons.edit', $coupon) }}">Edit</a>
+                                                href="{{ route('tenant.coupons.edit', $coupon) }}" aria-label="Edit coupon"
+                                                title="Edit">
+                                                <i class="fa-solid fa-pen-to-square me-1" aria-hidden="true"></i>
+                                            </a>
                                             <form method="POST" action="{{ route('tenant.coupons.status', $coupon) }}">
                                                 @csrf @method('PATCH')<input type="hidden" name="is_active"
-                                                    value="{{ $coupon->is_active ? 0 : 1 }}"><button
-                                                    class="btn btn-sm btn-outline-secondary">{{ $coupon->is_active ? 'Deactivate' : 'Activate' }}</button>
+                                                    value="{{ $coupon->is_active ? 0 : 1 }}">
+                                                <button type="submit"
+                                                    class="btn btn-sm {{ $coupon->is_active ? 'btn-outline-warning' : 'btn-outline-success' }}"
+                                                    aria-label="{{ $coupon->is_active ? 'Deactivate coupon' : 'Activate coupon' }}"
+                                                    title="{{ $coupon->is_active ? 'Deactivate' : 'Activate' }}">
+                                                    <i class="fa-solid {{ $coupon->is_active ? 'fa-toggle-on' : 'fa-toggle-off' }} me-1"
+                                                        aria-hidden="true"></i>
+                                                </button>
+                                            </form>
+                                        @endif
+                                        @if ($canDelete)
+                                            <form method="POST" action="{{ route('tenant.coupons.destroy', $coupon) }}"
+                                                data-confirm-delete="Delete this coupon?">
+                                                @csrf @method('DELETE')
+                                                <button class="btn btn-sm btn-outline-danger" type="submit"
+                                                    aria-label="Delete coupon" title="Delete">
+                                                    <i class="fa-solid fa-trash me-1" aria-hidden="true"></i>
+                                                </button>
                                             </form>
                                         @endif
                                     </div>

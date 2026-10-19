@@ -52,8 +52,10 @@
                                         :status="$return->status">{{ ucwords(str_replace('_', ' ', $return->status)) }}</x-status-badge>
                                 </td>
                                 <td>{{ $return->order->currency }} {{ $return->refund_amount }}</td>
-                                <td><a class="btn btn-sm btn-light"
-                                        href="{{ route('tenant.returns.show', $return) }}">View</a></td>
+                                <td><a class="btn btn-sm btn-light" href="{{ route('tenant.returns.show', $return) }}">
+                                        <i class="fa-solid fa-eye me-1 text-primary" aria-hidden="true"></i>
+                                    </a>
+                                </td>
                             </tr>
                         @empty<tr>
                                 <td colspan="10" class="listing-empty">No returns match your filters.</td>

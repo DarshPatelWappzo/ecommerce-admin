@@ -29,7 +29,7 @@
             <div class="d-flex gap-2">
                 <x-filter-button :filters="array_diff($filterFields, ['sort', 'direction', 'per_page'])" />
                 <a class="btn btn-outline-primary" href="{{ route('super-admin.payment-history.export', $filters) }}">Export
-                    CSV</a>
+                    Excel</a>
             </div>
         </div>
         <x-filter-offcanvas :action="route('super-admin.payment-history.index')" :filters="$filterFields">
@@ -95,7 +95,8 @@
                 </div>
             @endforelse
         </div>
-        <p class="small text-secondary">INR collection totals are displayed in rupees. Table and export amounts use integer
+        <p class="small text-secondary">INR amounts are displayed in rupees in the table, totals, and Excel export. Other
+            currencies use
             minor units, separated by currency. Platform refunds are not recorded; refund and net totals are unavailable.
             Purchase type was not recorded and is not inferred.</p>
         <p class="small text-secondary">Dates use capture time for captured payments and attempt creation time for unpaid
@@ -172,8 +173,10 @@
                                         {{ $payment['gateway_payment_id'] ?? '—' }}</div>
                                 </td>
                                 <td><a class="btn btn-sm btn-outline-primary"
-                                        href="{{ route('super-admin.payment-history.show', $payment['id']) }}">View
-                                        Details</a></td>
+                                        href="{{ route('super-admin.payment-history.show', $payment['id']) }}">
+                                        <i class="fa-solid fa-eye me-1 text-primary" aria-hidden="true"></i>
+                                    </a>
+                                </td>
                             </tr>
                         @empty
                             <tr>

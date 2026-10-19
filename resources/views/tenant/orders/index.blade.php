@@ -62,10 +62,14 @@
                                 </td>
                                 <td><x-status-badge :status="$order->status">{{ ucfirst($order->status) }}</x-status-badge></td>
                                 <td class="text-nowrap"><a class="btn btn-sm btn-light"
-                                        href="{{ route('tenant.orders.show', $order) }}">View</a>
+                                        href="{{ route('tenant.orders.show', $order) }}">
+                                        <i class="fa-solid fa-eye me-1 text-primary" aria-hidden="true"></i>
+                                    </a>
                                     @if ($order->status === 'draft' && $permissions['update'])
                                         <a class="btn btn-sm btn-outline-primary"
-                                            href="{{ route('tenant.orders.edit', $order) }}">Edit</a>
+                                            href="{{ route('tenant.orders.edit', $order) }}">
+                                            <i class="fa-solid fa-pen-to-square me-1" aria-hidden="true"></i>
+                                        </a>
                                     @endif
                                 </td>
                             </tr>

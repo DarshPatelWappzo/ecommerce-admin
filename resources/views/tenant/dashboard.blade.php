@@ -401,7 +401,5 @@
                 <p>No reporting sections are available for your current permissions.</p>
             </section>
         @endif
-        <p class="store-sample-note">INR reporting. Revenue is captured funds before refunds; orders exclude drafts.
-            Catalog and stock are current, not historical. Dates use {{ config('app.timezone') }}.</p>
     </div>
 @endsection

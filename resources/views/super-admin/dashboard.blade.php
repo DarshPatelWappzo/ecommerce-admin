@@ -11,11 +11,7 @@
         <div class="commerce-heading">
             <div>
                 <h1>Dashboard</h1>
-                <p>Overview of tenants, subscriptions and revenue.</p>
             </div>
-            <span class="commerce-demo-label"
-                title="Revenue uses live captured payments. Platform refunds are not recorded; net revenue is unavailable.">Live
-                · Gross collections</span>
         </div>
         <div class="commerce-metrics">
             <article class="commerce-card commerce-metric">
@@ -231,8 +227,6 @@
                 </div>
             </section>
         </div>
-        <p class="commerce-report-note commerce-muted">Live gross collections only. Platform refunds are not recorded; net
-            revenue is unavailable. Accounts without a started subscription are excluded from Subscription Status.</p>
     </div>
 @endsection
 

@@ -14,6 +14,7 @@
         "laravel/framework": "^13.17",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
+        "maatwebsite/excel": "^4.0",
         "proengsoft/laravel-jsvalidation": "~4.10.3",
         "razorpay/razorpay": "^2.9"
     },

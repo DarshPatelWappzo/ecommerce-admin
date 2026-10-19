@@ -24,17 +24,6 @@
     document.querySelectorAll("[data-product-delete]").forEach((form) => {
         form.addEventListener("submit", async (event) => {
             event.preventDefault();
-            const result = await Swal.fire({
-                icon: "warning",
-                title: "Delete this product?",
-                text: "This will delete the product and its sellable variants.",
-                showCancelButton: true,
-                confirmButtonText: "Yes, delete it",
-                cancelButtonText: "Cancel",
-                confirmButtonColor: "#dc3545",
-                focusCancel: true,
-            });
-            if (!result.isConfirmed) return;
             const button = form.querySelector("button");
             button.disabled = true;
             try {

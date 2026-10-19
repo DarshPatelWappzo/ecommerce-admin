@@ -4,11 +4,12 @@ namespace App\Services;
 
 use App\Repositories\PlatformPaymentHistoryRepository;
 use Illuminate\Support\Arr;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Maatwebsite\Excel\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class PlatformPaymentHistoryService
 {
-    public function __construct(private readonly PlatformPaymentHistoryRepository $payments) {}
+    public function __construct(private readonly PlatformPaymentHistoryRepository $payments, private readonly Excel $excel) {}
 
     /** @param array<string, mixed> $filters
      * @return array<string, mixed>
@@ -16,13 +17,13 @@ class PlatformPaymentHistoryService
     public function listing(array $filters): array
     {
         $payments = $this->payments->rows($filters)->paginate((int) ($filters['per_page'] ?? 15))->withQueryString();
-        $payments->through(fn(object $payment): array => $this->present($payment));
+        $payments->through(fn (object $payment): array => $this->present($payment));
 
         return [
             'payments' => $payments,
             'earnings' => $this->payments->earnings($filters),
             'filters' => $filters,
-            'mode' => $filters['mode'] ?? 'test' // instead of 'test' write 'live' on production
+            'mode' => $filters['mode'] ?? 'test', // instead of 'test' write 'live' on production
         ];
     }
 
@@ -56,10 +57,10 @@ class PlatformPaymentHistoryService
             'id' => $record->id,
             'reference' => $record->reference,
             'owner_id' => $record->owner_id,
-            'owner_name' => $record->owner_name ?: (trim(($record->first_name ?? '') . ' ' . ($record->last_name ?? '')) ?: 'Unavailable user'),
+            'owner_name' => $record->owner_name ?: (trim(($record->first_name ?? '').' '.($record->last_name ?? '')) ?: 'Unavailable user'),
             'email' => $record->email ?? 'Unavailable',
             'owner_deleted' => $record->owner_deleted_at !== null,
-            'tenant' => 'Tenant #' . $record->tenant_database_id . ($record->existing_tenant_id ? '' : ' (unavailable)'),
+            'tenant' => 'Tenant #'.$record->tenant_database_id.($record->existing_tenant_id ? '' : ' (unavailable)'),
             'domain' => $record->domain_name ?? 'Unavailable',
             'domain_deleted' => $record->domain_deleted_at !== null,
             'package' => $snapshot['name'] ?? $record->current_package_name ?? 'Unavailable package',
@@ -97,50 +98,54 @@ class PlatformPaymentHistoryService
      */
     private function safeScalars(array $values, array $keys): array
     {
-        return array_filter(Arr::only($values, $keys), fn(mixed $value): bool => is_scalar($value) || $value === null);
+        return array_filter(Arr::only($values, $keys), fn (mixed $value): bool => is_scalar($value) || $value === null);
     }
 
     /** @param array<string, mixed> $filters */
-    public function export(array $filters): StreamedResponse
+    public function export(array $filters): BinaryFileResponse
     {
         $query = $this->payments->rows($filters);
         $maxId = (clone $query)->reorder()->max('p.id');
         $query->where('p.id', '<=', $maxId ?? 0);
 
-        return response()->streamDownload(function () use ($query): void {
-            $output = fopen('php://output', 'w');
-            fputcsv($output, [
-                'Reference',
-                'Central owner ID',
-                'Owner name (current)',
-                'Owner email (current)',
-                'Tenant',
-                'Assigned domain (current)',
-                'Package',
-                'Package source',
-                'Purchase type',
-                'Billing cycle',
-                'Amount (minor units)',
-                'Currency',
-                'Gateway',
-                'Mode',
-                'Financial status',
-                'Fulfillment status',
-                'Checkout state',
-                'Date type',
-                'Date',
-                'Attempt created',
-                'Captured at',
-                'Gateway order ID',
-                'Gateway payment ID',
-                'Subscription ID',
-                'Effective start',
-                'Expiry',
-                'Grace ends',
-                'Safe failure information'
-            ], ',', '"', '');
+        $headers = [
+            'Reference',
+            'Central owner ID',
+            'Owner name (current)',
+            'Owner email (current)',
+            'Tenant',
+            'Assigned domain (current)',
+            'Package',
+            'Package source',
+            'Purchase type',
+            'Billing cycle',
+            'Amount (INR: rupees; others: minor units)',
+            'Currency',
+            'Gateway',
+            'Mode',
+            'Financial status',
+            'Fulfillment status',
+            'Checkout state',
+            'Date type',
+            'Date',
+            'Attempt created',
+            'Captured at',
+            'Gateway order ID',
+            'Gateway payment ID',
+            'Subscription ID',
+            'Effective start',
+            'Expiry',
+            'Grace ends',
+            'Safe failure information',
+        ];
+        $rows = function () use ($query): \Generator {
             foreach ($query->reorder()->lazyById(500, 'p.id', 'id') as $record) {
                 $p = $this->present($record);
+                if ($p['currency'] === 'INR') {
+                    $paise = str_pad($p['amount_minor'], 3, '0', STR_PAD_LEFT);
+                    $rupees = preg_replace('/\B(?=(\d{3})+(?!\d))/', ',', substr($paise, 0, -2));
+                    $p['amount_minor'] = '₹'.$rupees.'.'.substr($paise, -2);
+                }
                 $values = [];
                 foreach (
                     [
@@ -171,15 +176,16 @@ class PlatformPaymentHistoryService
                         'starts_at',
                         'expires_at',
                         'grace_ends_at',
-                        'failure'
+                        'failure',
                     ] as $key
                 ) {
-                    $value = (string) ($p[$key] ?? '');
-                    $values[] = preg_match('/^[\\s\\x00-\\x1F]*[=+@-]|^[\\t\\r\\n]/u', $value) ? "'" . $value : $value;
+                    $value = preg_replace('/[^\x{9}\x{A}\x{D}\x{20}-\x{D7FF}\x{E000}-\x{FFFD}\x{10000}-\x{10FFFF}]/u', '', (string) ($p[$key] ?? '')) ?? '';
+                    $values[] = preg_match('/^[\\s\\x00-\\x1F]*[=+@-]|^[\\t\\r\\n]/u', $value) ? "'".$value : $value;
                 }
-                fputcsv($output, $values, ',', '"', '');
+                yield $values;
             }
-            fclose($output);
-        }, 'platform-payments-' . ($filters['mode'] ?? 'test') . '.csv', ['Content-Type' => 'text/csv; charset=UTF-8', 'Cache-Control' => 'no-store']); // instead of 'test' write 'live' on production
+        };
+
+        return $this->excel->download(new PlatformPaymentHistoryExport($headers, $rows()), 'platform-payments-'.($filters['mode'] ?? 'test').'.xlsx', Excel::XLSX, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Cache-Control' => 'no-store']); // instead of 'test' write 'live' on production
     }
 }

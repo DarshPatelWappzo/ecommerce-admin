@@ -59,7 +59,9 @@
                                 <td>{{ $log->description }}</td>
                                 <td>
                                     <a class="btn btn-sm btn-light"
-                                        href="{{ route('tenant.audit-logs.show', $log->id) }}">View</a>
+                                        href="{{ route('tenant.audit-logs.show', $log->id) }}">
+                                        <i class="fa-solid fa-eye me-1 text-primary" aria-hidden="true"></i>
+                                    </a>
                                 </td>
                             </tr>
                         @empty

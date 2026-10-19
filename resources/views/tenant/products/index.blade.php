@@ -91,27 +91,26 @@
                                 <td>{{ $product->created_at->format('d M Y') }}</td>
                                 <td>
                                     @if ($canUpdate || $canDelete)
-                                        <div class="dropdown">
-                                            <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown"
-                                                data-bs-config='{"popperConfig":{"strategy":"fixed"}}' aria-expanded="false"
-                                                aria-label="Actions for {{ $product->name }}">
-                                                <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
-                                            </button>
-                                            <div class="dropdown-menu dropdown-menu-end">
-                                                @if ($canUpdate)
-                                                    <a class="dropdown-item"
-                                                        href="{{ route('tenant.products.edit', $product) }}">Edit</a>
-                                                @endif
-                                                @if ($canDelete)
-                                                    <form class="d-inline" method="POST"
-                                                        action="{{ route('tenant.products.destroy', $product) }}"
-                                                        data-product-delete>
-                                                        @csrf @method('DELETE')
-                                                        <button class="dropdown-item text-danger"
-                                                            type="submit">Delete</button>
-                                                    </form>
-                                                @endif
-                                            </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            @if ($canUpdate)
+                                                <a class="btn btn-sm btn-outline-primary"
+                                                    href="{{ route('tenant.products.edit', $product) }}"
+                                                    aria-label="Edit {{ $product->name }}" title="Edit">
+                                                    <i class="fa-solid fa-pen-to-square me-1" aria-hidden="true"></i>
+                                                </a>
+                                            @endif
+                                            @if ($canDelete)
+                                                <form class="d-inline" method="POST"
+                                                    action="{{ route('tenant.products.destroy', $product) }}"
+                                                    data-product-delete data-confirm-delete="Delete this product?"
+                                                    data-delete-message="This will delete the product and its sellable variants.">
+                                                    @csrf @method('DELETE')
+                                                    <button class="btn btn-sm btn-outline-danger" type="submit"
+                                                        aria-label="Delete {{ $product->name }}" title="Delete">
+                                                        <i class="fa-solid fa-trash me-1" aria-hidden="true"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
                                         </div>
                                     @endif
                                 </td>

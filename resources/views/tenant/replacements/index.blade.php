@@ -98,7 +98,10 @@
                                 </td>
                                 <td>{{ $replacement->item->sku }} / {{ $replacement->item->variant_name }}</td>
                                 <td><a class="btn btn-sm btn-light"
-                                        href="{{ route('tenant.replacements.show', $replacement) }}">View</a></td>
+                                        href="{{ route('tenant.replacements.show', $replacement) }}">
+                                        <i class="fa-solid fa-eye me-1 text-primary" aria-hidden="true"></i>
+                                    </a>
+                                </td>
                             </tr>
                         @empty<tr>
                                 <td colspan="10" class="listing-empty">No replacements match your filters.

@@ -7,7 +7,7 @@
         const selects = root.matches?.('select') ? [root] : root.querySelectorAll?.('select');
 
         selects?.forEach((select) => {
-            if (select.dataset.select2Disabled !== undefined || select.classList.contains('select2-hidden-accessible')) {
+            if (select.dataset.select2Disabled !== undefined || select.classList.contains('select2-hidden-accessible') || select.classList.contains('swal2-select')) {
                 return;
             }
 

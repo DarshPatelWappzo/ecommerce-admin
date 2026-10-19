@@ -65,20 +65,4 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     });
-    document
-        .querySelectorAll("[data-retire-gateway-version]")
-        .forEach(function (retireForm) {
-            retireForm.addEventListener("submit", async function (event) {
-                event.preventDefault();
-                const result = await Swal.fire({
-                    icon: "warning",
-                    text: "Permanently remove this unused historical credential version?",
-                    showCancelButton: true,
-                    confirmButtonText: "Remove unused version",
-                });
-                if (result.isConfirmed) {
-                    retireForm.submit();
-                }
-            });
-        });
 });

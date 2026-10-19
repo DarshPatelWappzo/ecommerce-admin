@@ -56,7 +56,10 @@
                                 <td>{{ $customer->created_at->format('d M Y') }}</td>
                                 <td>
                                     <div class="d-flex flex-wrap gap-2"><a class="btn btn-sm btn-outline-primary"
-                                            href="{{ route('tenant.customers.show', $customer) }}">View</a>
+                                            href="{{ route('tenant.customers.show', $customer) }}"
+                                            aria-label="View customer" title="View">
+                                            <i class="fa-solid fa-eye me-1" aria-hidden="true"></i>
+                                        </a>
                                         @include('tenant.customers._actions')
                                     </div>
                                 </td>

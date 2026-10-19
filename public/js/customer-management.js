@@ -37,18 +37,4 @@ jQuery(function ($) {
         .on("change", function () {
             this.value = normalizeContact(this.name, this.value);
         });
-    document.addEventListener("submit", async (event) => {
-        const form = event.target.closest("[data-confirm-delete]");
-        if (!form) return;
-        event.preventDefault();
-        const result = await Swal.fire({
-            icon: "warning",
-            title: form.dataset.confirmDelete,
-            showCancelButton: true,
-            confirmButtonText: "Delete",
-            confirmButtonColor: "#dc3545",
-            focusCancel: true,
-        });
-        if (result.isConfirmed) HTMLFormElement.prototype.submit.call(form);
-    });
 });

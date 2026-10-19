@@ -73,11 +73,10 @@
                                     </a>
                                     @if ($canDeleteUsers)
                                         <form class="d-inline" method="POST"
-                                            action="{{ route('tenant.users.destroy', $user) }}">
+                                            action="{{ route('tenant.users.destroy', $user) }}" data-confirm-delete="Delete this user?">
                                             @csrf
                                             @method('DELETE')
-                                            <button class="btn btn-sm btn-outline-danger" type="submit"
-                                                onclick="return confirm('Delete this user?')">
+                                            <button class="btn btn-sm btn-outline-danger" type="submit">
                                                 <i class="fa-solid fa-trash me-1" aria-hidden="true"></i>
                                             </button>
                                         </form>

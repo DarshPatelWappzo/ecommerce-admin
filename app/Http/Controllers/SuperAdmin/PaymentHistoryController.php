@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\PlatformPaymentHistoryRequest;
 use App\Services\PlatformPaymentHistoryService;
 use Illuminate\Contracts\View\View;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class PaymentHistoryController extends Controller
 {
@@ -16,6 +16,7 @@ class PaymentHistoryController extends Controller
     public function index(PlatformPaymentHistoryRequest $request): View
     {
         $data = $this->history->listing($request->validated());
+
         return view('super-admin.payment-history.index', $data);
     }
 
@@ -27,8 +28,8 @@ class PaymentHistoryController extends Controller
         return view('super-admin.payment-history.show', $data);
     }
 
-    /** Stream the authorized, filtered ledger as formula-safe CSV. */
-    public function export(PlatformPaymentHistoryRequest $request): StreamedResponse
+    /** Download the authorized, filtered ledger as an Excel workbook. */
+    public function export(PlatformPaymentHistoryRequest $request): BinaryFileResponse
     {
         return $this->history->export($request->validated());
     }

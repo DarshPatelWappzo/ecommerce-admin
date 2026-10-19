@@ -119,7 +119,8 @@
                 </div>
                 @if (!$webhook['current'] && $canEdit)
                     <form method="POST" action="{{ route('tenant.payment-gateways.retire', $webhook['version']) }}"
-                        data-retire-gateway-version class="mb-4">
+                        data-retire-gateway-version data-confirm-delete="Remove this credential version?"
+                        data-delete-message="Permanently remove this unused historical credential version?" class="mb-4">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="btn btn-sm btn-outline-danger">Remove unused version

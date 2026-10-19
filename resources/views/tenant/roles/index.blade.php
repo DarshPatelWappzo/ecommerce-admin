@@ -68,10 +68,9 @@
                                             href="{{ route('tenant.roles.edit', $role) }}"><i
                                                 class="fa-solid fa-pen-to-square me-1" aria-hidden="true"></i></a>
                                         {{-- <form class="d-inline" method="POST"
-                                            action="{{ route('tenant.roles.destroy', $role) }}">
+                                            action="{{ route('tenant.roles.destroy', $role) }}" data-confirm-delete="Delete this role?">
                                             @csrf @method('DELETE')
-                                            <button class="btn btn-sm btn-outline-danger" type="submit"
-                                                onclick="return confirm('Delete this role?')"><i
+                                            <button class="btn btn-sm btn-outline-danger" type="submit"><i
                                                     class="fa-solid fa-trash me-1" aria-hidden="true"></i></button>
                                         </form> --}}
                                     @endif

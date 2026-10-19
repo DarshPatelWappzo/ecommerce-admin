@@ -56,8 +56,10 @@
                                 </td>
                                 <td>{{ $payment->currency }} {{ $payment->amount }}</td>
                                 <td>{{ $payment->gateway_payment_id ?: $payment->reference_number ?: '—' }}</td>
-                                <td><a class="btn btn-sm btn-light"
-                                        href="{{ route('tenant.payments.show', $payment) }}">View</a></td>
+                                <td><a class="btn btn-sm btn-light" href="{{ route('tenant.payments.show', $payment) }}">
+                                        <i class="fa-solid fa-eye me-1 text-primary" aria-hidden="true"></i>
+                                    </a>
+                                </td>
                             </tr>
                         @empty
                             <tr>
